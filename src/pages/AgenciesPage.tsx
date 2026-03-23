@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -29,30 +30,47 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building2, Copy, Plus, Trash2 } from 'lucide-react';
+import { Building2, Copy, Plus, Trash2, Check, ExternalLink } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import type { Agency } from '@/lib/mock-data';
+
+function copyToClipboard(text: string): boolean {
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function buildPortalUrl(token: string) {
+  return `${window.location.origin}/agency/${token}`;
+}
 
 export default function AgenciesPage() {
   const { kols, agencies, addAgency, removeAgency } = useKolStore();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAgencyName, setNewAgencyName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [createdAgency, setCreatedAgency] = useState<Agency | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const getKolCount = (agencyId: string) => kols.filter((k) => k.agencyId === agencyId).length;
 
-  const copyLink = (token: string) => {
-    const url = `${window.location.origin}/agency/${token}`;
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = url;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
+  const handleCopyLink = (token: string, agencyId: string) => {
+    const url = buildPortalUrl(token);
+    if (copyToClipboard(url)) {
+      setCopiedId(agencyId);
       toast({ title: 'Link copied', description: 'Agency portal link copied to clipboard.' });
-    } catch {
+      setTimeout(() => setCopiedId(null), 2000);
+    } else {
       toast({ title: 'Copy failed', description: url, variant: 'destructive' });
     }
   };
@@ -60,10 +78,10 @@ export default function AgenciesPage() {
   const handleAddAgency = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAgencyName.trim()) return;
-    addAgency(newAgencyName.trim());
+    const agency = addAgency(newAgencyName.trim());
     setNewAgencyName('');
     setShowAddDialog(false);
-    toast({ title: 'Agency added', description: `${newAgencyName.trim()} has been created.` });
+    setCreatedAgency(agency);
   };
 
   const handleDeleteAgency = () => {
@@ -97,7 +115,7 @@ export default function AgenciesPage() {
             <TableRow>
               <TableHead>Agency Name</TableHead>
               <TableHead>KOLs</TableHead>
-              <TableHead>Access Token</TableHead>
+              <TableHead>Portal Link</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -118,7 +136,9 @@ export default function AgenciesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <code className="text-xs bg-muted px-2 py-1 rounded">{agency.token}</code>
+                    <code className="text-[11px] bg-muted px-2 py-1 rounded text-muted-foreground break-all select-all">
+                      /agency/{agency.token}
+                    </code>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -126,10 +146,14 @@ export default function AgenciesPage() {
                         variant="ghost"
                         size="sm"
                         className="gap-1.5 text-xs"
-                        onClick={() => copyLink(agency.token)}
+                        onClick={() => handleCopyLink(agency.token, agency.id)}
                       >
-                        <Copy className="h-3 w-3" />
-                        Copy Link
+                        {copiedId === agency.id ? (
+                          <Check className="h-3 w-3 text-success" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                        {copiedId === agency.id ? 'Copied' : 'Copy Link'}
                       </Button>
                       <Button
                         variant="ghost"
@@ -153,6 +177,9 @@ export default function AgenciesPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Add New Agency</DialogTitle>
+            <DialogDescription>
+              A unique portal link will be automatically generated.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddAgency} className="space-y-4">
             <div className="space-y-2">
@@ -175,6 +202,38 @@ export default function AgenciesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Created Agency — show link */}
+      <Dialog open={!!createdAgency} onOpenChange={(open) => !open && setCreatedAgency(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Agency Created</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-foreground">{createdAgency?.name}</span> has been added. Share this portal link with the agency.
+            </DialogDescription>
+          </DialogHeader>
+          {createdAgency && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+                <code className="text-xs break-all flex-1 select-all">
+                  {buildPortalUrl(createdAgency.token)}
+                </code>
+              </div>
+              <Button
+                className="w-full gap-1.5"
+                onClick={() => {
+                  handleCopyLink(createdAgency.token, createdAgency.id);
+                  setCreatedAgency(null);
+                }}
+              >
+                <Copy className="h-4 w-4" />
+                Copy Link & Close
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

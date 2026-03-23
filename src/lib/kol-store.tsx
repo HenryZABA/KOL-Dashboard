@@ -15,7 +15,7 @@ interface KolStoreContext {
   updateKolStage: (kolId: string, newStage: Stage, note?: string) => void;
   updateKolField: (kolId: string, updates: Partial<KOL>) => void;
   toggleTodaysFocus: (kolId: string) => void;
-  addAgency: (name: string) => void;
+  addAgency: (name: string) => Agency;
   removeAgency: (agencyId: string) => void;
 }
 
@@ -91,10 +91,15 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const addAgency = useCallback((name: string) => {
+  const addAgency = useCallback((name: string): Agency => {
     const id = `agency-${nextId++}`;
-    const token = `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString(36)}`;
-    setAgencies((prev) => [...prev, { id, name, token }]);
+    // Generate a URL-safe token: lowercase name slug + random suffix
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const rand = Math.random().toString(36).slice(2, 8);
+    const token = `${slug}-${rand}`;
+    const agency: Agency = { id, name, token };
+    setAgencies((prev) => [...prev, agency]);
+    return agency;
   }, []);
 
   const removeAgency = useCallback((agencyId: string) => {
