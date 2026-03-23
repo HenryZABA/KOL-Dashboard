@@ -47,10 +47,10 @@ export default function TodaysFocusPage() {
         )}
       </div>
 
-      {/* Bottom grid: Pre-publish Board + Stage Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pre-publish Confirmation Board — takes 2/3 */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* Bottom: Pre-publish Board + Stage Distribution side by side */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Pre-publish Confirmation Board — natural width */}
+        <div className="space-y-4 shrink-0 w-full lg:w-auto">
           <div className="flex items-center gap-2">
             <FileCheck className="h-5 w-5 text-stage-confirm" />
             <h2 className="text-lg font-semibold text-foreground">Pre-publish Confirmation</h2>
@@ -59,8 +59,8 @@ export default function TodaysFocusPage() {
           <PrePublishBoard kols={prePublishKols} agencies={agencies} />
         </div>
 
-        {/* Stage Distribution Dashboard — takes 1/3 */}
-        <div className="lg:col-span-1">
+        {/* Stage Distribution Dashboard — fills remaining space */}
+        <div className="w-full lg:flex-1 lg:min-w-[280px] lg:max-w-[340px]">
           <StageDistributionPanel kols={kols} />
         </div>
       </div>
