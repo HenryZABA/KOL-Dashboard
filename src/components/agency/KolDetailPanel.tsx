@@ -44,7 +44,6 @@ const LINK_STAGES: { key: Stage; label: string }[] = [
   { key: 'writing_script', label: 'Script' },
   { key: 'creating_project', label: 'Project' },
   { key: 'video_production', label: 'Video' },
-  { key: 'pre_publish', label: 'Review' },
 ];
 
 export function KolDetailPanel({
