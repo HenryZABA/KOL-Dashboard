@@ -59,8 +59,8 @@ export default function TodaysFocusPage() {
           <PrePublishBoard kols={prePublishKols} agencies={agencies} />
         </div>
 
-        {/* Stage Distribution Dashboard — fills remaining space */}
-        <div className="w-full lg:flex-1 lg:min-w-[280px] lg:max-w-[340px]">
+        {/* Stage Distribution Dashboard — fixed width, left-aligned */}
+        <div className="w-full lg:w-[300px] shrink-0">
           <StageDistributionPanel kols={kols} />
         </div>
       </div>
