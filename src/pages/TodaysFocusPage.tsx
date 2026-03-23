@@ -41,7 +41,7 @@ export default function TodaysFocusPage() {
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-2">
             {focusKols.map((kol) => (
-              <KolFocusCard key={kol.id} kol={kol} />
+              <KolFocusCard key={kol.id} kol={kol} agency={agencies.find((a) => a.id === kol.agencyId)} />
             ))}
           </div>
         )}

@@ -1,6 +1,7 @@
+import { Badge } from '@/components/ui/badge';
 import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import { ParallelStageLabel } from '@/components/kol/StageLabel';
-import type { KOL, Stage } from '@/lib/mock-data';
+import type { KOL, Stage, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { Clock } from 'lucide-react';
@@ -24,6 +25,7 @@ const STAGE_STEPS: { label: string; stages: Stage[] }[] = [
 
 interface KolFocusCardProps {
   kol: KOL;
+  agency?: Agency;
 }
 
 function StageProgressBar({ stage }: { stage: Stage }) {
@@ -57,7 +59,7 @@ function StageProgressBar({ stage }: { stage: Stage }) {
   );
 }
 
-export function KolFocusCard({ kol }: KolFocusCardProps) {
+export function KolFocusCard({ kol, agency }: KolFocusCardProps) {
   const days = getDaysInStage(kol.stageUpdatedAt);
   const overdue = isOverdue(kol.stageUpdatedAt);
 
@@ -83,17 +85,24 @@ export function KolFocusCard({ kol }: KolFocusCardProps) {
 
       {/* Bottom section — pushed to bottom for consistent alignment */}
       <div className="mt-auto flex flex-col gap-2.5">
-        {/* Days waiting */}
-        <div className="flex items-center gap-1.5">
-          <Clock className={cn('h-3.5 w-3.5', overdue ? 'text-overdue' : 'text-muted-foreground')} />
-          <span
-            className={cn(
-              'text-xs font-medium',
-              overdue ? 'text-overdue' : 'text-muted-foreground',
-            )}
-          >
-            {days}d in current stage
-          </span>
+        {/* Days waiting + agency */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Clock className={cn('h-3.5 w-3.5', overdue ? 'text-overdue' : 'text-muted-foreground')} />
+            <span
+              className={cn(
+                'text-xs font-medium',
+                overdue ? 'text-overdue' : 'text-muted-foreground',
+              )}
+            >
+              {days}d in current stage
+            </span>
+          </div>
+          {agency && (
+            <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5 shrink-0">
+              {agency.name}
+            </Badge>
+          )}
         </div>
 
         {/* Progress bar */}
