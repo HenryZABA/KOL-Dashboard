@@ -81,7 +81,7 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
       </div>
 
       {/* Footer: days + agency, bottom-left */}
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex items-center justify-between">
         <div className="flex items-center gap-1">
           <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
           <span className={cn('text-xs font-medium', overdue ? 'text-overdue' : 'text-muted-foreground')}>
