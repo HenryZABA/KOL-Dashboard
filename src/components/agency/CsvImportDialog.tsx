@@ -161,7 +161,11 @@ function parseData(text: string, agencies: Agency[], fixedAgency?: Agency): Pars
 
     const raw: Record<string, string> = {};
     for (const [idx, key] of Object.entries(fieldMap)) {
-      raw[key] = (cols[Number(idx)] || '').trim();
+      const newVal = (cols[Number(idx)] || '').trim();
+      // Only overwrite if new value is non-empty or key hasn't been set yet
+      if (newVal || !raw[key]) {
+        raw[key] = newVal;
+      }
     }
 
     const name = raw.name || '';
