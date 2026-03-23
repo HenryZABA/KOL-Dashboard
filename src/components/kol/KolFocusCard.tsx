@@ -2,15 +2,63 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import { ParallelStageLabel } from '@/components/kol/StageLabel';
-import type { KOL, Agency } from '@/lib/mock-data';
+import type { KOL, Agency, Stage } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { Eye, Clock } from 'lucide-react';
+
+const STAGE_PROGRESS: Record<Stage, number> = {
+  writing_idea: 10,
+  writing_script: 30,
+  creating_project: 30,
+  video_production: 55,
+  pre_publish: 80,
+  published: 100,
+};
+
+const STAGE_STEPS: { label: string; stages: Stage[] }[] = [
+  { label: 'Idea', stages: ['writing_idea'] },
+  { label: 'Script', stages: ['writing_script', 'creating_project'] },
+  { label: 'Video', stages: ['video_production'] },
+  { label: 'Review', stages: ['pre_publish'] },
+  { label: 'Live', stages: ['published'] },
+];
 
 interface KolFocusCardProps {
   kol: KOL;
   agency?: Agency;
   onViewDetails?: (kol: KOL) => void;
+}
+
+function StageProgressBar({ stage }: { stage: Stage }) {
+  const pct = STAGE_PROGRESS[stage];
+  const currentIdx = STAGE_STEPS.findIndex((s) => s.stages.includes(stage));
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {/* Bar */}
+      <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {/* Step labels */}
+      <div className="flex justify-between">
+        {STAGE_STEPS.map((step, idx) => (
+          <span
+            key={step.label}
+            className={cn(
+              'text-[9px] leading-none font-medium',
+              idx <= currentIdx ? 'text-primary' : 'text-muted-foreground/50',
+            )}
+          >
+            {step.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) {
@@ -43,7 +91,7 @@ export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) 
       </div>
 
       {/* Bottom section — pushed to bottom for consistent alignment */}
-      <div className="mt-auto flex flex-col gap-2">
+      <div className="mt-auto flex flex-col gap-2.5">
         {/* Days waiting */}
         <div className="flex items-center gap-1.5">
           <Clock className={cn('h-3.5 w-3.5', overdue ? 'text-overdue' : 'text-muted-foreground')} />
@@ -56,6 +104,9 @@ export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) 
             {days}d in current stage
           </span>
         </div>
+
+        {/* Progress bar */}
+        <StageProgressBar stage={kol.currentStage} />
 
         {/* Actions */}
         <Button
