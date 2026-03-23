@@ -15,6 +15,8 @@ interface KolStoreContext {
   updateKolStage: (kolId: string, newStage: Stage, note?: string) => void;
   updateKolField: (kolId: string, updates: Partial<KOL>) => void;
   toggleTodaysFocus: (kolId: string) => void;
+  addAgency: (name: string) => void;
+  removeAgency: (agencyId: string) => void;
 }
 
 const StoreContext = createContext<KolStoreContext | null>(null);
@@ -23,7 +25,7 @@ let nextId = 100;
 
 export function KolStoreProvider({ children }: { children: ReactNode }) {
   const [kols, setKols] = useState<KOL[]>(MOCK_KOLS);
-  const agencies = MOCK_AGENCIES;
+  const [agencies, setAgencies] = useState<Agency[]>(MOCK_AGENCIES);
 
   const addKol = useCallback((data: { name: string; platforms: Platform[]; agencyId: string; profileUrl?: string; contentDirection?: string; notes?: string }) => {
     const id = `kol-${nextId++}`;
@@ -89,8 +91,20 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const addAgency = useCallback((name: string) => {
+    const id = `agency-${nextId++}`;
+    const token = `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString(36)}`;
+    setAgencies((prev) => [...prev, { id, name, token }]);
+  }, []);
+
+  const removeAgency = useCallback((agencyId: string) => {
+    setAgencies((prev) => prev.filter((a) => a.id !== agencyId));
+    // Also remove KOLs belonging to this agency
+    setKols((prev) => prev.filter((k) => k.agencyId !== agencyId));
+  }, []);
+
   return (
-    <StoreContext.Provider value={{ kols, agencies, addKol, updateKolStage, updateKolField, toggleTodaysFocus }}>
+    <StoreContext.Provider value={{ kols, agencies, addKol, updateKolStage, updateKolField, toggleTodaysFocus, addAgency, removeAgency }}>
       {children}
     </StoreContext.Provider>
   );
