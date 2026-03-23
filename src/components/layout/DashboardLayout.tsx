@@ -1,18 +1,29 @@
-import { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { SummaryBar } from './SummaryBar';
+import { useAuth } from '@/lib/auth';
+import { useEffect } from 'react';
 
 export function DashboardLayout() {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    const isAuth = localStorage.getItem('kol-auth');
-    if (!isAuth) {
+    if (!loading && !user) {
       navigate('/login', { replace: true });
     }
-  }, [navigate]);
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <SidebarProvider>

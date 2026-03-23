@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { routers } from "./router";
 import { KolStoreProvider } from "./lib/kol-store";
+import { AuthProvider } from "./lib/auth";
 
 const queryClient = new QueryClient();
 
@@ -12,13 +13,15 @@ const App = () => {
   const router = createBrowserRouter(routers);
   return (
     <QueryClientProvider client={queryClient}>
-      <KolStoreProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <RouterProvider router={router} />
-        </TooltipProvider>
-      </KolStoreProvider>
+      <AuthProvider>
+        <KolStoreProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </KolStoreProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };

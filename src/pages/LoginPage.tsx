@@ -5,21 +5,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LayoutDashboard } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Mock auth — just set flag and redirect
-    setTimeout(() => {
-      localStorage.setItem('kol-auth', 'true');
+
+    if (isSignUp) {
+      const { error } = await signUp(email, password);
+      if (error) {
+        toast({ title: 'Sign up failed', description: error, variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+      toast({ title: 'Account created', description: 'You are now signed in.' });
       navigate('/dashboard', { replace: true });
-    }, 400);
+    } else {
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast({ title: 'Sign in failed', description: error, variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+      navigate('/dashboard', { replace: true });
+    }
+    setLoading(false);
   };
 
   return (
@@ -32,7 +51,9 @@ export default function LoginPage() {
             </div>
           </div>
           <CardTitle className="text-xl">KOL Campaign Dashboard</CardTitle>
-          <CardDescription>Sign in to manage your campaigns</CardDescription>
+          <CardDescription>
+            {isSignUp ? 'Create an account to get started' : 'Sign in to manage your campaigns'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -56,12 +77,25 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
             </div>
             <Button type="submit" className="w-full mt-2" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading
+                ? (isSignUp ? 'Creating account...' : 'Signing in...')
+                : (isSignUp ? 'Create Account' : 'Sign In')}
             </Button>
           </form>
+
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setIsSignUp(!isSignUp)}
+            >
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </button>
+          </div>
         </CardContent>
       </Card>
     </div>

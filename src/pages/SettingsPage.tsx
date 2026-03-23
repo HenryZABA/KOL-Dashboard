@@ -1,12 +1,14 @@
 import { Button } from '@/components/ui/button';
 import { Settings, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
-  const handleLogout = () => {
-    localStorage.removeItem('kol-auth');
+  const handleLogout = async () => {
+    await signOut();
     navigate('/login', { replace: true });
   };
 
@@ -21,7 +23,7 @@ export default function SettingsPage() {
         <div>
           <h2 className="text-sm font-medium text-foreground">Account</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            You are logged in as the brand owner (admin).
+            Logged in as <span className="font-medium text-foreground">{user?.email}</span>
           </p>
         </div>
 
