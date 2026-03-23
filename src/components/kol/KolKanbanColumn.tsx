@@ -15,7 +15,7 @@ interface KolKanbanColumnProps {
 
 const COLUMN_HEADER_COLORS: Record<string, string> = {
   'Idea': 'bg-stage-idea',
-  'Writing Script / Project': 'bg-stage-script',
+  'Script / Project': 'bg-stage-script',
   'Video': 'bg-stage-video',
   'Pre-publish Confirmation': 'bg-stage-confirm',
   'Published': 'bg-stage-published',

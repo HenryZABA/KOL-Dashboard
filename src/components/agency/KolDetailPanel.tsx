@@ -127,7 +127,7 @@ export function KolDetailPanel({
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Writing Script</span>
+                    <span className="text-sm">Script</span>
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5">
                         <Label htmlFor="script-version" className="text-xs text-muted-foreground">v</Label>
