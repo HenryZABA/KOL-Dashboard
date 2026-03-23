@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useKolStore } from '@/lib/kol-store';
-import { getAgencyByToken } from '@/lib/mock-data';
 import { AgencyKolTable } from '@/components/agency/AgencyKolTable';
 import { AddKolForm } from '@/components/agency/AddKolForm';
 import { KolDetailPanel } from '@/components/agency/KolDetailPanel';
@@ -15,7 +14,7 @@ export default function AgencyPortalPage() {
 
   const agency = useMemo(() => {
     if (!token) return undefined;
-    return getAgencyByToken(agencies, token);
+    return agencies.find((a) => a.token === token);
   }, [token, agencies]);
 
   const agencyKols = useMemo(() => {
