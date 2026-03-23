@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import {
   type KOL,
   type Agency,
@@ -7,6 +7,17 @@ import {
   MOCK_KOLS,
   MOCK_AGENCIES,
 } from './mock-data';
+
+const STORAGE_KEY_KOLS = 'kol-store-kols';
+const STORAGE_KEY_AGENCIES = 'kol-store-agencies';
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) return JSON.parse(saved);
+  } catch { /* ignore */ }
+  return fallback;
+}
 
 interface KolStoreContext {
   kols: KOL[];
@@ -24,8 +35,12 @@ const StoreContext = createContext<KolStoreContext | null>(null);
 let nextId = 100;
 
 export function KolStoreProvider({ children }: { children: ReactNode }) {
-  const [kols, setKols] = useState<KOL[]>(MOCK_KOLS);
-  const [agencies, setAgencies] = useState<Agency[]>(MOCK_AGENCIES);
+  const [kols, setKols] = useState<KOL[]>(() => loadFromStorage(STORAGE_KEY_KOLS, MOCK_KOLS));
+  const [agencies, setAgencies] = useState<Agency[]>(() => loadFromStorage(STORAGE_KEY_AGENCIES, MOCK_AGENCIES));
+
+  // Persist to localStorage on changes
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_KOLS, JSON.stringify(kols)); }, [kols]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEY_AGENCIES, JSON.stringify(agencies)); }, [agencies]);
 
   const addKol = useCallback((data: { name: string; platforms: Platform[]; agencyId: string; profileUrl?: string; contentDirection?: string; notes?: string }) => {
     const id = `kol-${nextId++}`;
