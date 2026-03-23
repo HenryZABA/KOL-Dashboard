@@ -60,7 +60,7 @@ export default function TodaysFocusPage() {
         </div>
 
         {/* Stage Distribution Dashboard — fixed width, left-aligned next to Pre-publish */}
-        <div className="w-full lg:w-[300px] shrink-0">
+        <div className="w-full lg:w-[380px] shrink-0">
           <StageDistributionPanel kols={kols} />
         </div>
       </div>
