@@ -37,32 +37,37 @@ export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) 
         )}
       </div>
 
-      {/* Stage */}
-      <ParallelStageLabel kol={kol} />
-
-      {/* Days waiting */}
-      <div className="flex items-center gap-1.5">
-        <Clock className={cn('h-3.5 w-3.5', overdue ? 'text-overdue' : 'text-muted-foreground')} />
-        <span
-          className={cn(
-            'text-xs font-medium',
-            overdue ? 'text-overdue' : 'text-muted-foreground',
-          )}
-        >
-          {days}d in current stage
-        </span>
+      {/* Stage — fixed height to keep cards aligned */}
+      <div className="min-h-[44px] flex items-start">
+        <ParallelStageLabel kol={kol} />
       </div>
 
-      {/* Actions */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-full justify-start gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-auto"
-        onClick={() => onViewDetails?.(kol)}
-      >
-        <Eye className="h-3.5 w-3.5" />
-        View Details
-      </Button>
+      {/* Bottom section — pushed to bottom for consistent alignment */}
+      <div className="mt-auto flex flex-col gap-2">
+        {/* Days waiting */}
+        <div className="flex items-center gap-1.5">
+          <Clock className={cn('h-3.5 w-3.5', overdue ? 'text-overdue' : 'text-muted-foreground')} />
+          <span
+            className={cn(
+              'text-xs font-medium',
+              overdue ? 'text-overdue' : 'text-muted-foreground',
+            )}
+          >
+            {days}d in current stage
+          </span>
+        </div>
+
+        {/* Actions */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => onViewDetails?.(kol)}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          View Details
+        </Button>
+      </div>
     </div>
   );
 }
