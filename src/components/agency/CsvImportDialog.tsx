@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useKolStore } from '@/lib/kol-store';
-import type { Platform, Agency } from '@/lib/mock-data';
+import type { Platform, Agency, Stage } from '@/lib/mock-data';
+import { STAGE_LABELS } from '@/lib/mock-data';
 import { FileSpreadsheet, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ interface ParsedRow {
   platforms: Platform[];
   profileUrl: string;
   contentDirection: string;
+  stage: Stage;
   agencyName: string;
   matchedAgency: Agency | undefined;
 }
@@ -44,26 +46,52 @@ const PLATFORM_MAP: Record<string, Platform> = {
   twitter: 'x',
 };
 
+/** Map Chinese progress labels to our Stage type */
+const STATUS_MAP: Record<string, Stage> = {
+  '待启动': 'writing_idea',
+  'pending': 'writing_idea',
+  '脚本制作中': 'writing_script',
+  '脚本修改中': 'writing_script',
+  '视频制作中': 'video_production',
+  '视频修改中': 'video_production',
+  '待发布': 'pre_publish',
+  '已发布': 'published',
+};
+
 /** Fuzzy-match column headers to known field keys */
 function matchHeader(header: string): string | null {
-  const h = header.trim().toLowerCase();
-  if (h === 'influencer name' || h === 'name' || h === 'kol name') return 'name';
-  if (h === 'account link' || h === 'profile url' || h === 'link' || h === 'url') return 'profileUrl';
-  if (h === 'category' || h === 'content direction' || h === 'direction') return 'contentDirection';
-  if (h === 'platform') return 'platform';
-  if (h === 'type') return 'type';
-  if (h === 'agency name' || h === 'agency') return 'agencyName';
+  const h = header.trim().toLowerCase().replace(/["""]/g, '');
+  if (h === 'influencer name' || h === 'name' || h === 'kol name' || h === '达人名称') return 'name';
+  if (h === 'account link' || h === 'profile url' || h === 'link' || h === 'url' || h === '账号链接') return 'profileUrl';
+  if (h === 'category' || h === 'content direction' || h === 'direction' || h === '合作内容方向' || h === '内容方向') return 'contentDirection';
+  if (h === 'platform' || h === '平台') return 'platform';
+  if (h === 'type' || h === '类型') return 'type';
+  if (h === 'agency name' || h === 'agency' || h === '机构' || h === '代理商') return 'agencyName';
+  if (h === '进度' || h === 'progress' || h === 'status' || h === 'stage' || h === '状态') return 'stage';
   return null;
 }
 
 function parsePlatform(raw: string): Platform[] {
-  const parts = raw.split(/[,/&+\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+  // Pre-clean: remove descriptors like " - Video", " - Shorts"
+  const cleaned = raw.replace(/\s*-\s*(video|shorts|reels|stories|post)\s*/gi, ' ');
+  const parts = cleaned.split(/[,/&+\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
   const result: Platform[] = [];
   for (const p of parts) {
     const mapped = PLATFORM_MAP[p];
     if (mapped && !result.includes(mapped)) result.push(mapped);
   }
   return result;
+}
+
+function parseStage(raw: string): Stage {
+  const trimmed = raw.trim().toLowerCase();
+  // Check exact match first
+  if (STATUS_MAP[raw.trim()]) return STATUS_MAP[raw.trim()];
+  // Check lowercase
+  for (const [key, value] of Object.entries(STATUS_MAP)) {
+    if (key.toLowerCase() === trimmed) return value;
+  }
+  return 'writing_idea';
 }
 
 function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): ParsedRow[] {
@@ -80,6 +108,9 @@ function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): Parse
   const rows: ParsedRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i];
+    // Skip empty lines
+    if (cols.every((c) => !c.trim())) continue;
+
     const raw: Record<string, string> = {};
     for (const [idx, key] of Object.entries(fieldMap)) {
       raw[key] = (cols[Number(idx)] || '').trim();
@@ -90,6 +121,7 @@ function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): Parse
     // Merge platform + type columns for broader platform detection
     const platformText = [raw.platform || '', raw.type || ''].join(' ');
     const platforms = parsePlatform(platformText);
+    const stage = parseStage(raw.stage || '');
 
     let agencyName = '';
     let matchedAgency: Agency | undefined;
@@ -109,6 +141,7 @@ function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): Parse
       platforms: platforms.length > 0 ? platforms : ['youtube'],
       profileUrl: raw.profileUrl || '',
       contentDirection: raw.contentDirection || '',
+      stage,
       agencyName,
       matchedAgency,
     });
@@ -148,6 +181,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
           agencyId: row.matchedAgency.id,
           profileUrl: row.profileUrl || undefined,
           contentDirection: row.contentDirection || undefined,
+          initialStage: row.stage,
         });
         success++;
       } catch {
@@ -172,38 +206,32 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-4 w-4" />
             Import KOLs from CSV
           </DialogTitle>
           <DialogDescription>
-            Paste tab-separated data (copied from a spreadsheet). The system will auto-detect columns like Influencer Name, Platform, Account link, Category, and Agency Name.
+            Paste tab-separated data (copied from a spreadsheet). Auto-detects: Influencer Name, Platform, Account link, Category, Agency Name, and Progress status.
           </DialogDescription>
         </DialogHeader>
 
         {result ? (
-          /* Success state */
           <div className="flex flex-col items-center gap-3 py-8">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Check className="h-6 w-6 text-primary" />
             </div>
-            <p className="text-sm font-medium text-foreground">
-              Import complete
-            </p>
+            <p className="text-sm font-medium text-foreground">Import complete</p>
             <p className="text-xs text-muted-foreground">
               {result.success} KOL(s) added{result.skipped > 0 ? `, ${result.skipped} skipped` : ''}
             </p>
-            <Button size="sm" onClick={() => handleClose(false)}>
-              Done
-            </Button>
+            <Button size="sm" onClick={() => handleClose(false)}>Done</Button>
           </div>
         ) : !parsed ? (
-          /* Step 1: Paste CSV */
           <div className="space-y-3">
             <Textarea
-              placeholder={"Agency Name\tAccount link\tInfluencer Name\tCategory\tPlatform\t...\nInpander\thttps://...\tAi Lockup\tAI\tYT\t..."}
+              placeholder={"Agency Name\tInfluencer Name\tPlatform\tCategory\t进度\t...\nInpander\tAi Lockup\tYT\tAI\t视频制作中\t..."}
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               rows={8}
@@ -211,13 +239,10 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
             />
             <DialogFooter>
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
-              <Button onClick={handleParse} disabled={!rawText.trim()}>
-                Parse Data
-              </Button>
+              <Button onClick={handleParse} disabled={!rawText.trim()}>Parse Data</Button>
             </DialogFooter>
           </div>
         ) : (
-          /* Step 2: Preview parsed data */
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">
@@ -238,6 +263,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Name</th>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Platform</th>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Direction</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Stage</th>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Agency</th>
                   </tr>
                 </thead>
@@ -247,6 +273,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
                       <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
                       <td className="px-3 py-2 text-muted-foreground">{row.platforms.join(', ')}</td>
                       <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">{row.contentDirection || '-'}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{STAGE_LABELS[row.stage]}</td>
                       <td className="px-3 py-2">
                         {row.matchedAgency ? (
                           <span className="text-foreground">{row.matchedAgency.name}</span>
@@ -270,9 +297,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setParsed(null); setResult(null); }}>
-                Back
-              </Button>
+              <Button variant="outline" onClick={() => { setParsed(null); setResult(null); }}>Back</Button>
               <Button onClick={handleImport} disabled={importing || parsed.length === 0}>
                 {importing ? (
                   <>

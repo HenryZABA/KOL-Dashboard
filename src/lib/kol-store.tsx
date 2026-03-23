@@ -82,14 +82,15 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, [fetchData]);
 
-  const addKol = useCallback(async (data: { name: string; platforms: Platform[]; agencyId: string; profileUrl?: string; contentDirection?: string; notes?: string }) => {
+  const addKol = useCallback(async (data: { name: string; platforms: Platform[]; agencyId: string; profileUrl?: string; contentDirection?: string; notes?: string; initialStage?: Stage }) => {
+    const stage = data.initialStage || 'writing_idea';
     const { data: inserted, error } = await supabase.from('kols').insert({
       name: data.name,
       platforms: data.platforms,
       profile_url: data.profileUrl || null,
       content_direction: data.contentDirection || null,
       notes: data.notes || null,
-      current_stage: 'writing_idea',
+      current_stage: stage,
       agency_id: data.agencyId,
     }).select().single();
 
@@ -98,7 +99,7 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
     await supabase.from('change_log').insert({
       kol_id: (inserted as Record<string, unknown>).id as string,
       from_stage: null,
-      to_stage: 'writing_idea',
+      to_stage: stage,
     });
 
     await fetchData();
