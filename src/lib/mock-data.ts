@@ -43,10 +43,10 @@ export interface Agency {
 }
 
 export const STAGE_LABELS: Record<Stage, string> = {
-  writing_idea: 'Writing Idea',
+  writing_idea: 'Idea',
   writing_script: 'Writing Script',
-  creating_project: 'Creating Project',
-  video_production: 'Video Production',
+  creating_project: 'Project',
+  video_production: 'Video',
   pre_publish: 'Pre-publish Confirmation',
   published: 'Published',
 };
@@ -63,9 +63,9 @@ export const STAGE_ORDER: Stage[] = [
 export type KanbanColumn = 'writing_idea' | 'script_project' | 'video_production' | 'pre_publish' | 'published';
 
 export const KANBAN_COLUMNS: { key: KanbanColumn; label: string; stages: Stage[] }[] = [
-  { key: 'writing_idea', label: 'Writing Idea', stages: ['writing_idea'] },
-  { key: 'script_project', label: 'Writing Script / Creating Project', stages: ['writing_script', 'creating_project'] },
-  { key: 'video_production', label: 'Video Production', stages: ['video_production'] },
+  { key: 'writing_idea', label: 'Idea', stages: ['writing_idea'] },
+  { key: 'script_project', label: 'Writing Script / Project', stages: ['writing_script', 'creating_project'] },
+  { key: 'video_production', label: 'Video', stages: ['video_production'] },
   { key: 'pre_publish', label: 'Pre-publish Confirmation', stages: ['pre_publish'] },
   { key: 'published', label: 'Published', stages: ['published'] },
 ];

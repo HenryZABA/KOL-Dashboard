@@ -151,7 +151,7 @@ export function KolDetailPanel({
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Creating Project</span>
+                    <span className="text-sm">Project</span>
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <Checkbox
                         checked={kol.projectComplete}
@@ -167,7 +167,7 @@ export function KolDetailPanel({
                       className="w-full"
                       onClick={() => onUpdateStage(kol.id, 'video_production', 'Script and project both completed')}
                     >
-                      Advance to Video Production
+                      Advance to Video
                     </Button>
                   )}
                 </div>
