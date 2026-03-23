@@ -1,46 +1,47 @@
-# Stage Review Links Feature
+# CSV Import for Bulk KOL Addition
 
 ## Context
-User wants each KOL to have optional review material links per stage (Idea, Script, Project, Video, Pre-publish). Agency portal users can fill these in. On the brand dashboard (Today's Focus), the progress bar step labels become clickable links that open the corresponding review material.
+User wants to paste tab-separated CSV data (copied from spreadsheets) into the system to bulk-add KOLs. The CSV contains many columns, but only a few map to our KOL model. Unused columns should be discarded, and platform abbreviations (YT, TT, IG, X) should be auto-converted.
 
-## Approach
+## CSV Column Mapping
+Source columns → KOL fields:
+- **Influencer Name** → `name`
+- **Account link** → `profileUrl`
+- **Category** → `contentDirection`
+- **Platform** → `platforms[]` (auto-convert: YT→youtube, TT→tiktok, IG→instagram, X→x)
+- **Agency Name** → match to existing `agencies` by name to get `agencyId`
 
-### 1. Database: Add `stage_links` JSONB column to `kols` table
-Add a single JSONB column `stage_links` to the existing `kols` table. Structure:
-```json
-{
-  "writing_idea": "https://...",
-  "writing_script": "https://...",
-  "creating_project": "https://...",
-  "video_production": "https://...",
-  "pre_publish": "https://..."
-}
-```
-This is simpler than a separate table and allows easy reads without joins.
+All other columns (Type, Follower, Region, Price, Email, etc.) are ignored.
 
-### 2. Data Model: Add `stageLinks` to KOL type
-- **`src/lib/mock-data.ts`**: Add `stageLinks?: Record<string, string>` to `KOL` interface
-- **`src/lib/kol-store.tsx`**: 
-  - Map `stage_links` DB column to `stageLinks` in `dbToKol()`
-  - Support updating `stageLinks` in `updateKolField()`
+## Implementation
 
-### 3. Agency Portal: Add link input fields per stage in KolDetailPanel
-- **`src/components/agency/KolDetailPanel.tsx`**: Add a new "Review Material Links" section showing an input for each stage (Idea, Script, Project, Video, Pre-publish). Each input lets the agency paste a URL. Changes saved via `onUpdateField`.
+### 1. New Component: `CsvImportDialog`
+**File**: `src/components/agency/CsvImportDialog.tsx`
 
-### 4. Today's Focus Cards: Clickable progress bar labels
-- **`src/components/kol/KolFocusCard.tsx`**: In `StageProgressBar`, if a stage has a link in `kol.stageLinks`, render the label as a clickable `<a>` that opens the link in a new tab. Visual cue: underline + slightly different styling for linked stages.
+- Dialog with a large textarea for pasting TSV/CSV data
+- "Parse" button to process the pasted data
+- After parsing, shows a preview table with columns: Name, Platform, Profile URL, Content Direction, Agency (matched)
+- Rows with unmatched agency names are highlighted with a warning
+- "Import All" button to bulk-add all valid rows via `addKol()`
+- Shows success count after import
 
-### 5. Kanban Cards & PrePublishBoard (optional enhancement)
-- If stage-specific info shows on kanban cards (Script, Project, Video), those labels could also be clickable. But keeping scope minimal — only the Focus card progress bar as requested.
+### 2. Add Import Button to All KOLs Page
+**File**: `src/pages/AllKolsKanbanPage.tsx`
+
+- Add an "Import CSV" button in the header toolbar (next to filters)
+- Opens the `CsvImportDialog`
+
+### 3. Reuse Existing
+- `useKolStore().addKol()` for adding each KOL
+- `useKolStore().agencies` for matching agency names
+- Platform type from `mock-data.ts`
 
 ## Files to Modify
-1. **Database migration** — add `stage_links jsonb default '{}'` to `kols`
-2. **`src/lib/mock-data.ts`** — add `stageLinks` to `KOL` interface
-3. **`src/lib/kol-store.tsx`** — map `stage_links` in `dbToKol`, handle in `updateKolField`
-4. **`src/components/agency/KolDetailPanel.tsx`** — add link inputs per stage
-5. **`src/components/kol/KolFocusCard.tsx`** — make progress step labels clickable
+1. `src/components/agency/CsvImportDialog.tsx` — **new file**
+2. `src/pages/AllKolsKanbanPage.tsx` — add Import button
 
 ## Verification
-- Open Agency Portal → select a KOL → fill in link for "Idea" stage → save
-- Go to Today's Focus → find that KOL → "Idea" label in progress bar should be clickable and open the link
-- Stages without links remain plain text (not clickable)
+- Go to All KOLs page → click "Import CSV"
+- Paste tab-separated data with header row
+- Preview table shows only mapped fields
+- Click "Import All" → KOLs appear in kanban board under correct agencies
