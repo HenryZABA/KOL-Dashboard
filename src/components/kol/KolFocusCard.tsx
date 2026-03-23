@@ -1,11 +1,9 @@
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import { ParallelStageLabel } from '@/components/kol/StageLabel';
-import type { KOL, Agency, Stage } from '@/lib/mock-data';
+import type { KOL, Stage } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { Eye, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 const STAGE_PROGRESS: Record<Stage, number> = {
   writing_idea: 10,
@@ -26,8 +24,6 @@ const STAGE_STEPS: { label: string; stages: Stage[] }[] = [
 
 interface KolFocusCardProps {
   kol: KOL;
-  agency?: Agency;
-  onViewDetails?: (kol: KOL) => void;
 }
 
 function StageProgressBar({ stage }: { stage: Stage }) {
@@ -61,7 +57,7 @@ function StageProgressBar({ stage }: { stage: Stage }) {
   );
 }
 
-export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) {
+export function KolFocusCard({ kol }: KolFocusCardProps) {
   const days = getDaysInStage(kol.stageUpdatedAt);
   const overdue = isOverdue(kol.stageUpdatedAt);
 
@@ -102,17 +98,6 @@ export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) 
 
         {/* Progress bar */}
         <StageProgressBar stage={kol.currentStage} />
-
-        {/* Actions */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => onViewDetails?.(kol)}
-        >
-          <Eye className="h-3.5 w-3.5" />
-          View Details
-        </Button>
       </div>
     </div>
   );

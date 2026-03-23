@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useKolStore } from '@/lib/kol-store';
-import { isOverdue, getAgencyById } from '@/lib/mock-data';
+import { isOverdue } from '@/lib/mock-data';
 import { KolFocusCard } from '@/components/kol/KolFocusCard';
 import { PrePublishBoard } from '@/components/kol/PrePublishBoard';
 import { Crosshair, FileCheck } from 'lucide-react';
@@ -43,7 +43,6 @@ export default function TodaysFocusPage() {
               <KolFocusCard
                 key={kol.id}
                 kol={kol}
-                agency={getAgencyById(agencies, kol.agencyId)}
               />
             ))}
           </div>
