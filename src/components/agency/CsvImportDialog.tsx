@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils';
 interface CsvImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When provided, all imported KOLs are assigned to this agency (skip agency column matching) */
   fixedAgency?: Agency;
 }
 
@@ -33,45 +32,39 @@ interface ParsedRow {
   matchedAgency: Agency | undefined;
 }
 
+// ─── Platform mapping ──────────────────────────────────────
 const PLATFORM_MAP: Record<string, Platform> = {
-  yt: 'youtube',
-  ytb: 'youtube',
-  youtube: 'youtube',
-  tt: 'tiktok',
-  tiktok: 'tiktok',
-  ig: 'instagram',
-  ins: 'instagram',
-  instagram: 'instagram',
-  x: 'x',
-  twitter: 'x',
+  yt: 'youtube', ytb: 'youtube', youtube: 'youtube',
+  tt: 'tiktok', tiktok: 'tiktok',
+  ig: 'instagram', ins: 'instagram', instagram: 'instagram',
+  x: 'x', twitter: 'x',
+  fb: 'youtube', facebook: 'youtube', // FB not in our Platform type, fallback
 };
 
-/** Map Chinese/English progress labels to our Stage type */
-const STATUS_MAP: Record<string, Stage> = {
-  // Idea
-  '待启动': 'writing_idea',
-  'pending': 'writing_idea',
+// ─── Status mapping (Chinese → Stage) ──────────────────────
+const STATUS_KEYWORDS: { keyword: string; stage: Stage }[] = [
   // Script
-  '脚本制作中': 'writing_script',
-  '脚本待审核': 'writing_script',
-  '脚本修改中': 'writing_script',
-  'script in progress': 'writing_script',
-  'script pending review': 'writing_script',
-  'script under modification': 'writing_script',
+  { keyword: '脚本制作中', stage: 'writing_script' },
+  { keyword: '脚本待审核', stage: 'writing_script' },
+  { keyword: '脚本修改中', stage: 'writing_script' },
+  { keyword: 'script in progress', stage: 'writing_script' },
+  { keyword: 'script pending review', stage: 'writing_script' },
+  { keyword: 'script under modification', stage: 'writing_script' },
   // Video
-  '视频制作中': 'video_production',
-  '视频待审核': 'video_production',
-  '视频修改中': 'video_production',
-  'video in progress': 'video_production',
-  'video pending review': 'video_production',
-  'video under modification': 'video_production',
-  // Pre-publish
-  '待发布': 'pre_publish',
-  // Published
-  '已发布': 'published',
-};
+  { keyword: '视频制作中', stage: 'video_production' },
+  { keyword: '视频待审核', stage: 'video_production' },
+  { keyword: '视频修改中', stage: 'video_production' },
+  { keyword: 'video in progress', stage: 'video_production' },
+  { keyword: 'video pending review', stage: 'video_production' },
+  { keyword: 'video under modification', stage: 'video_production' },
+  // Others
+  { keyword: '待启动', stage: 'writing_idea' },
+  { keyword: 'pending', stage: 'writing_idea' },
+  { keyword: '待发布', stage: 'pre_publish' },
+  { keyword: '已发布', stage: 'published' },
+];
 
-/** Fuzzy-match column headers to known field keys */
+// ─── Header matching ───────────────────────────────────────
 function matchHeader(header: string): string | null {
   const h = header.trim().toLowerCase().replace(/["""]/g, '');
   if (h === 'influencer name' || h === 'name' || h === 'kol name' || h === '达人名称') return 'name';
@@ -84,8 +77,44 @@ function matchHeader(header: string): string | null {
   return null;
 }
 
+// ─── CSV line parser (handles quoted fields with commas) ───
+function parseCsvLine(line: string, delimiter: string): string[] {
+  if (delimiter === '\t') return line.split('\t');
+
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i++; // skip escaped quote
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === delimiter) {
+        result.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// ─── Platform parser ───────────────────────────────────────
 function parsePlatform(raw: string): Platform[] {
-  // Pre-clean: remove descriptors like " - Video", " - Shorts"
   const cleaned = raw.replace(/\s*-\s*(video|shorts|reels|stories|post)\s*/gi, ' ');
   const parts = cleaned.split(/[,/&+\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
   const result: Platform[] = [];
@@ -96,32 +125,38 @@ function parsePlatform(raw: string): Platform[] {
   return result;
 }
 
+// ─── Stage parser (fuzzy keyword match) ────────────────────
 function parseStage(raw: string): Stage {
   const trimmed = raw.trim().toLowerCase();
-  // Check exact match first
-  if (STATUS_MAP[raw.trim()]) return STATUS_MAP[raw.trim()];
-  // Check lowercase
-  for (const [key, value] of Object.entries(STATUS_MAP)) {
-    if (key.toLowerCase() === trimmed) return value;
+  if (!trimmed) return 'writing_idea';
+  for (const { keyword, stage } of STATUS_KEYWORDS) {
+    if (trimmed.includes(keyword.toLowerCase())) return stage;
   }
   return 'writing_idea';
 }
 
-function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): ParsedRow[] {
-  const lines = text.trim().split('\n').map((l) => l.split('\t'));
-  if (lines.length < 2) return [];
+// ─── Main parser ───────────────────────────────────────────
+function parseData(text: string, agencies: Agency[], fixedAgency?: Agency): ParsedRow[] {
+  const rawLines = text.trim().split('\n');
+  if (rawLines.length < 2) return [];
 
-  const headers = lines[0];
+  // Auto-detect delimiter: if header has tabs, use TSV; otherwise CSV
+  const delimiter = rawLines[0].includes('\t') ? '\t' : ',';
+
+  const allParsedLines = rawLines.map((line) => parseCsvLine(line, delimiter));
+  const headers = allParsedLines[0];
   const fieldMap: Record<number, string> = {};
   headers.forEach((h, i) => {
     const key = matchHeader(h);
     if (key) fieldMap[i] = key;
   });
 
+  // Parse all data rows
+  const dataLines = allParsedLines.slice(1);
   const rows: ParsedRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i];
-    // Skip empty lines
+
+  for (let i = 0; i < dataLines.length; i++) {
+    const cols = dataLines[i];
     if (cols.every((c) => !c.trim())) continue;
 
     const raw: Record<string, string> = {};
@@ -129,16 +164,31 @@ function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): Parse
       raw[key] = (cols[Number(idx)] || '').trim();
     }
 
-    if (!raw.name) continue;
-
-    // Merge platform + type columns for broader platform detection
+    const name = raw.name || '';
     const platformText = [raw.platform || '', raw.type || ''].join(' ');
     const platforms = parsePlatform(platformText);
+    const profileUrl = raw.profileUrl || '';
+
+    // Sub-row: no name but has a profile URL → merge into previous KOL
+    if (!name && profileUrl && rows.length > 0) {
+      const prev = rows[rows.length - 1];
+      for (const p of platforms) {
+        if (!prev.platforms.includes(p)) prev.platforms.push(p);
+      }
+      // Also grab stage from sub-row if previous had none set
+      const subStage = raw.stage ? parseStage(raw.stage) : null;
+      if (subStage && subStage !== 'writing_idea' && prev.stage === 'writing_idea') {
+        prev.stage = subStage;
+      }
+      continue;
+    }
+
+    if (!name) continue;
+
     const stage = parseStage(raw.stage || '');
 
     let agencyName = '';
     let matchedAgency: Agency | undefined;
-
     if (fixedAgency) {
       matchedAgency = fixedAgency;
       agencyName = fixedAgency.name;
@@ -150,9 +200,9 @@ function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): Parse
     }
 
     rows.push({
-      name: raw.name,
+      name,
       platforms: platforms.length > 0 ? platforms : ['youtube'],
-      profileUrl: raw.profileUrl || '',
+      profileUrl,
       contentDirection: raw.contentDirection || '',
       stage,
       agencyName,
@@ -163,6 +213,7 @@ function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): Parse
   return rows;
 }
 
+// ─── Component ─────────────────────────────────────────────
 export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDialogProps) {
   const { agencies, addKol } = useKolStore();
   const [rawText, setRawText] = useState('');
@@ -171,7 +222,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
   const [result, setResult] = useState<{ success: number; skipped: number } | null>(null);
 
   const handleParse = useCallback(() => {
-    const rows = parseTsv(rawText, agencies, fixedAgency);
+    const rows = parseData(rawText, agencies, fixedAgency);
     setParsed(rows);
     setResult(null);
   }, [rawText, agencies, fixedAgency]);
@@ -183,10 +234,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
     let skipped = 0;
 
     for (const row of parsed) {
-      if (!row.matchedAgency) {
-        skipped++;
-        continue;
-      }
+      if (!row.matchedAgency) { skipped++; continue; }
       try {
         await addKol({
           name: row.name,
@@ -197,9 +245,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
           initialStage: row.stage,
         });
         success++;
-      } catch {
-        skipped++;
-      }
+      } catch { skipped++; }
     }
 
     setImporting(false);
@@ -207,11 +253,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
   }, [parsed, addKol]);
 
   const handleClose = (v: boolean) => {
-    if (!v) {
-      setRawText('');
-      setParsed(null);
-      setResult(null);
-    }
+    if (!v) { setRawText(''); setParsed(null); setResult(null); }
     onOpenChange(v);
   };
 
@@ -226,7 +268,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
             Import KOLs from CSV
           </DialogTitle>
           <DialogDescription>
-            Paste tab-separated data (copied from a spreadsheet). Auto-detects: Influencer Name, Platform, Account link, Category, Agency Name, and Progress status.
+            Paste CSV or tab-separated data from a spreadsheet. Auto-detects columns and merges multi-platform rows.
           </DialogDescription>
         </DialogHeader>
 
@@ -244,7 +286,7 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
         ) : !parsed ? (
           <div className="space-y-3">
             <Textarea
-              placeholder={"Agency Name\tInfluencer Name\tPlatform\tCategory\t进度\t...\nInpander\tAi Lockup\tYT\tAI\t视频制作中\t..."}
+              placeholder={"Agency Name,Influencer Name,Platform,Category,进度\nInpander,Ai Lockup,YT,AI,待发布"}
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               rows={8}
@@ -304,19 +346,14 @@ export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDi
             </div>
 
             {unmatchedCount > 0 && (
-              <p className="text-[11px] text-amber-600">
-                Rows with unmatched agencies will be skipped during import.
-              </p>
+              <p className="text-[11px] text-amber-600">Rows with unmatched agencies will be skipped during import.</p>
             )}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => { setParsed(null); setResult(null); }}>Back</Button>
               <Button onClick={handleImport} disabled={importing || parsed.length === 0}>
                 {importing ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    Importing...
-                  </>
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Importing...</>
                 ) : (
                   `Import ${parsed.length - unmatchedCount} KOL(s)`
                 )}
