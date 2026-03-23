@@ -29,11 +29,6 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <PlatformIcons platforms={kol.platforms} className="shrink-0" />
-          {agency && (
-            <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5">
-              {agency.name}
-            </Badge>
-          )}
         </div>
       </div>
 
@@ -62,13 +57,18 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
       )}
 
       {/* Footer */}
-      <div className="flex items-center pt-1">
+      <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-1">
           <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
           <span className={cn('text-[11px]', overdue ? 'text-overdue font-medium' : 'text-muted-foreground')}>
             {days}d
           </span>
         </div>
+        {agency && (
+          <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5">
+            {agency.name}
+          </Badge>
+        )}
       </div>
     </div>
   );
