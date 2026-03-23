@@ -87,20 +87,6 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
           </div>
         )}
       </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-1 border-t">
-        {agency && (
-          <Badge variant="secondary" className="text-[10px] font-normal py-0.5">
-            {agency.name}
-          </Badge>
-        )}
-        {kol.contentDirection && (
-          <span className="text-[10px] text-muted-foreground truncate ml-auto">
-            {kol.contentDirection}
-          </span>
-        )}
-      </div>
     </div>
   );
 }
