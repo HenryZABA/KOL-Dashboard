@@ -38,22 +38,14 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-lg border bg-card p-5 shadow-card transition-shadow hover:shadow-card-hover',
+        'flex flex-col gap-3 rounded-lg border bg-card p-5 shadow-card transition-shadow hover:shadow-card-hover min-h-[160px]',
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-card-foreground">{kol.name}</span>
-          <PlatformIcons platforms={kol.platforms} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
-          <span className={cn('text-xs font-medium', overdue ? 'text-overdue' : 'text-muted-foreground')}>
-            {days}d
-          </span>
-        </div>
+      {/* Header: name left, platform icons right */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-card-foreground">{kol.name}</span>
+        <PlatformIcons platforms={kol.platforms} />
       </div>
 
       {/* Details grid */}
@@ -87,14 +79,21 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
           </div>
         )}
       </div>
-      {/* Agency badge */}
-      {agency && (
-        <div className="flex justify-end">
+
+      {/* Footer: days + agency, bottom-left */}
+      <div className="mt-auto flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
+          <span className={cn('text-xs font-medium', overdue ? 'text-overdue' : 'text-muted-foreground')}>
+            {days}d
+          </span>
+        </div>
+        {agency && (
           <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5">
             {agency.name}
           </Badge>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
