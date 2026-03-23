@@ -1,4 +1,7 @@
-# Remove Pin and AlertCircle icons from KolKanbanCard
+# Move agency badge to footer row in KolKanbanCard
 
-## Change
-Remove the `isTodaysFocus` Pin icon and `overdue` AlertCircle icon from the KOL name row in `src/components/kol/KolKanbanCard.tsx` (lines 29-30). Also clean up unused imports.
+Move agency name badge from header (top-right) to footer row, right-aligned on same line as days count.
+
+File: `src/components/kol/KolKanbanCard.tsx`
+- Remove agency badge from header div
+- Add it to footer div with `justify-between`
