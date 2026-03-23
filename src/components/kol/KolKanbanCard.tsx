@@ -3,7 +3,7 @@ import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KOL, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { AlertCircle, Pin, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 interface KolKanbanCardProps {
   kol: KOL;
@@ -26,8 +26,6 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-medium text-card-foreground truncate">{kol.name}</span>
-          {kol.isTodaysFocus && <Pin className="h-3 w-3 text-primary shrink-0" />}
-          {overdue && <AlertCircle className="h-3 w-3 text-overdue shrink-0" />}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <PlatformIcons platforms={kol.platforms} className="shrink-0" />
