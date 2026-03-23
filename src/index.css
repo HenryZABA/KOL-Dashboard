@@ -61,6 +61,10 @@
     /* Shadows */
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
     --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+
+    /* Dashboard accent colors */
+    --accent-mint: 150 80% 70%;
+    --accent-lavender: 262 60% 70%;
   }
 
   .dark {
@@ -118,4 +122,29 @@ body,
 #root {
   width: 100%;
   height: 100%;
+}
+
+/* Dashboard animations */
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ring-draw {
+  from { stroke-dashoffset: var(--ring-circumference, 283); }
+  to { stroke-dashoffset: var(--ring-offset, 0); }
+}
+
+.animate-bar-grow {
+  transform-origin: left;
+  animation: bar-grow 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+.animate-ring-draw {
+  animation: ring-draw 1.2s ease-out forwards;
 }
