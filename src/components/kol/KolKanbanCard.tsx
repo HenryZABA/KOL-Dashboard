@@ -18,7 +18,7 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
   return (
     <div
       className={cn(
-        'flex flex-col rounded-md border bg-card p-3 shadow-card transition-shadow hover:shadow-card-hover space-y-2 min-h-[120px]',
+        'flex flex-col rounded-md border bg-card p-3 shadow-card transition-shadow hover:shadow-card-hover min-h-[120px]',
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
@@ -33,30 +33,32 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
       </div>
 
       {/* Stage detail */}
-      {isParallel && (
-        <div className="space-y-1 text-[11px]">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span>Script:</span>
-            <span className="font-medium text-card-foreground">
-              v{kol.scriptVersion} {kol.scriptComplete ? '(done)' : ''}
-            </span>
+      <div className="mt-1.5">
+        {isParallel && (
+          <div className="space-y-1 text-[11px]">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <span>Script:</span>
+              <span className="font-medium text-card-foreground">
+                v{kol.scriptVersion} {kol.scriptComplete ? '(done)' : ''}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <span>Project:</span>
+              <span className="font-medium text-card-foreground">
+                {kol.projectComplete ? '(done)' : '(in progress)'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span>Project:</span>
-            <span className="font-medium text-card-foreground">
-              {kol.projectComplete ? '(done)' : '(in progress)'}
-            </span>
+        )}
+
+        {kol.currentStage === 'video_production' && (
+          <div className="text-[11px] text-muted-foreground">
+            Version: <span className="font-medium text-card-foreground">v{kol.videoVersion}</span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {kol.currentStage === 'video_production' && (
-        <div className="text-[11px] text-muted-foreground">
-          Version: <span className="font-medium text-card-foreground">v{kol.videoVersion}</span>
-        </div>
-      )}
-
-      {/* Footer */}
+      {/* Footer - pinned to bottom */}
       <div className="flex items-center justify-between pt-1 mt-auto h-6">
         <div className="flex items-center gap-1">
           <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
