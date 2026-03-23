@@ -1,29 +1,71 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useKolStore } from '@/lib/kol-store';
 import { isOverdue } from '@/lib/mock-data';
 import { KolFocusCard } from '@/components/kol/KolFocusCard';
 import { PrePublishBoard } from '@/components/kol/PrePublishBoard';
 import { StageDistributionPanel } from '@/components/kol/StageDistributionPanel';
 import { Crosshair, FileCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function TodaysFocusPage() {
   const { kols, agencies } = useKolStore();
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+
+  // Agencies that have at least 1 KOL
+  const activeAgencies = useMemo(() => {
+    const agencyIds = new Set(kols.map((k) => k.agencyId));
+    return agencies.filter((a) => agencyIds.has(a.id));
+  }, [kols, agencies]);
+
+  const filteredKols = useMemo(() => {
+    if (!selectedAgencyId) return kols;
+    return kols.filter((k) => k.agencyId === selectedAgencyId);
+  }, [kols, selectedAgencyId]);
 
   const focusKols = useMemo(() => {
-    return kols.filter(
+    return filteredKols.filter(
       (kol) =>
         kol.currentStage !== 'pre_publish' &&
         (kol.isTodaysFocus ||
           (isOverdue(kol.stageUpdatedAt) && kol.currentStage !== 'published')),
     );
-  }, [kols]);
+  }, [filteredKols]);
 
   const prePublishKols = useMemo(() => {
-    return kols.filter((kol) => kol.currentStage === 'pre_publish');
-  }, [kols]);
+    return filteredKols.filter((kol) => kol.currentStage === 'pre_publish');
+  }, [filteredKols]);
 
   return (
     <div className="p-6 space-y-8">
+      {/* Agency channel filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setSelectedAgencyId(null)}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+            !selectedAgencyId
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-card text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground',
+          )}
+        >
+          All
+        </button>
+        {activeAgencies.map((agency) => (
+          <button
+            key={agency.id}
+            onClick={() => setSelectedAgencyId(selectedAgencyId === agency.id ? null : agency.id)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+              selectedAgencyId === agency.id
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-card text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            {agency.name}
+          </button>
+        ))}
+      </div>
+
       {/* Today's Focus section */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -61,7 +103,7 @@ export default function TodaysFocusPage() {
 
         {/* Stage Distribution Dashboard — fixed width, left-aligned next to Pre-publish */}
         <div className="w-full lg:w-[500px] shrink-0">
-          <StageDistributionPanel kols={kols} />
+          <StageDistributionPanel kols={filteredKols} />
         </div>
       </div>
     </div>
