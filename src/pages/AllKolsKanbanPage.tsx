@@ -80,6 +80,8 @@ export default function AllKolsKanbanPage() {
               label={col.label}
               kols={col.kols}
               agencies={agencies}
+              collapsible={col.key === 'published'}
+              defaultCollapsed={col.key === 'published'}
             />
           ))}
         </div>

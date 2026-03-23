@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import type { KOL, Agency } from '@/lib/mock-data';
 import { KolKanbanCard } from './KolKanbanCard';
 import { cn } from '@/lib/utils';
+import { ChevronRight } from 'lucide-react';
 
 interface KolKanbanColumnProps {
   label: string;
   kols: KOL[];
   agencies: Agency[];
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
   className?: string;
 }
 
@@ -17,8 +21,29 @@ const COLUMN_HEADER_COLORS: Record<string, string> = {
   'Published': 'bg-stage-published',
 };
 
-export function KolKanbanColumn({ label, kols, agencies, className }: KolKanbanColumnProps) {
+export function KolKanbanColumn({ label, kols, agencies, collapsible, defaultCollapsed = false, className }: KolKanbanColumnProps) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const dotColor = COLUMN_HEADER_COLORS[label] || 'bg-muted-foreground';
+
+  if (collapsible && collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        className={cn(
+          'flex flex-col items-center gap-3 min-w-[44px] max-w-[44px] shrink-0 rounded-lg border bg-muted/40 py-4 px-1 hover:bg-muted/80 transition-colors cursor-pointer',
+          className,
+        )}
+      >
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <span className="text-xs font-medium text-muted-foreground bg-background rounded-full px-2 py-0.5">
+          {kols.length}
+        </span>
+        <span className="text-xs font-semibold text-foreground [writing-mode:vertical-lr] tracking-wider">
+          {label}
+        </span>
+      </button>
+    );
+  }
 
   return (
     <div className={cn('flex flex-col min-w-[260px] max-w-[300px] shrink-0', className)}>
@@ -29,6 +54,15 @@ export function KolKanbanColumn({ label, kols, agencies, className }: KolKanbanC
         <span className="ml-auto text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
           {kols.length}
         </span>
+        {collapsible && (
+          <button
+            onClick={() => setCollapsed(true)}
+            className="ml-1 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Collapse column"
+          >
+            <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+          </button>
+        )}
       </div>
 
       {/* Cards */}
