@@ -1,6 +1,7 @@
-# Rename "Writing Script" → "Script"
+## Plan: Fix footer height in Kanban cards
 
-Replace all display labels "Writing Script" with "Script" across:
-- `src/lib/mock-data.ts` — STAGE_LABELS + KANBAN_COLUMNS ("Script / Project")
-- `src/components/kol/KolKanbanColumn.tsx` — header colors key
-- `src/components/agency/KolDetailPanel.tsx` — detail panel label
+### Change
+Add `h-6` to the footer div to ensure the days + agency row is always the same height across all cards.
+
+### File
+- `src/components/kol/KolKanbanCard.tsx` line 60
