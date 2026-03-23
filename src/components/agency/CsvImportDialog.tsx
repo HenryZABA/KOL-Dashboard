@@ -46,15 +46,28 @@ const PLATFORM_MAP: Record<string, Platform> = {
   twitter: 'x',
 };
 
-/** Map Chinese progress labels to our Stage type */
+/** Map Chinese/English progress labels to our Stage type */
 const STATUS_MAP: Record<string, Stage> = {
+  // Idea
   '待启动': 'writing_idea',
   'pending': 'writing_idea',
+  // Script
   '脚本制作中': 'writing_script',
+  '脚本待审核': 'writing_script',
   '脚本修改中': 'writing_script',
+  'script in progress': 'writing_script',
+  'script pending review': 'writing_script',
+  'script under modification': 'writing_script',
+  // Video
   '视频制作中': 'video_production',
+  '视频待审核': 'video_production',
   '视频修改中': 'video_production',
+  'video in progress': 'video_production',
+  'video pending review': 'video_production',
+  'video under modification': 'video_production',
+  // Pre-publish
   '待发布': 'pre_publish',
+  // Published
   '已发布': 'published',
 };
 
