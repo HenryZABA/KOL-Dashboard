@@ -1,45 +1,31 @@
-# Fix: Agency Portal Link — Persist Data to localStorage
+# Plan: Stage Distribution Dashboard
 
 ## Context
-When a new agency is created, the portal link (`/agency/:token`) fails because:
-- Agency/KOL data lives only in React `useState` (in-memory)
-- Opening the link triggers a full page load, resetting state to initial mock data
-- The newly created agency doesn't exist in mock data, so it shows "Invalid Access Link"
+User wants a data visualization panel placed to the right of the Pre-publish Confirmation section on the Today's Focus page. It should show the count of KOLs in each pipeline stage (Idea, Script/Project, Video, Pre-publish, Published) using visual elements inspired by the pastel-crypto-data reference component (animated bars, gauge, clean cards with rounded corners).
 
-## Solution
-Persist `kols` and `agencies` state to `localStorage` in `kol-store.tsx`:
+## Approach
+Create a `StageDistributionPanel` component with:
+1. **Horizontal bar chart** — one bar per stage with count + percentage, animated on mount
+2. **Total KOL count** with a prominent number display
+3. **Overdue count** highlighted
+4. **Mini donut/ring** gauge showing pipeline completion (% published)
 
-1. **Initialize state from localStorage** — on mount, read saved data; fall back to mock data if nothing saved
-2. **Sync state to localStorage** — use `useEffect` to write `kols` and `agencies` to localStorage whenever they change
-3. **Maintain the same API** — no changes to any other files
+Visual style: Matches the pastel-crypto-data aesthetic — rounded cards (rounded-2xl), soft shadows, mint green + purple accents, smooth entry animations. Uses design system tokens (no raw colors in component — define accent tokens in index.css).
 
-## Files Modified
-- `src/lib/kol-store.tsx` — Add localStorage read/write for both `kols` and `agencies`
+## Files to Modify
+- `src/index.css` — add animation keyframes + accent color tokens
+- `src/components/kol/StageDistributionPanel.tsx` — **NEW** — the dashboard widget
+- `src/pages/TodaysFocusPage.tsx` — update layout: Pre-publish + Dashboard side by side in a grid
 
-## Implementation
-```typescript
-const STORAGE_KEY_KOLS = 'kol-store-kols';
-const STORAGE_KEY_AGENCIES = 'kol-store-agencies';
-
-function loadFromStorage<T>(key: string, fallback: T): T {
-  try {
-    const saved = localStorage.getItem(key);
-    if (saved) return JSON.parse(saved);
-  } catch { /* ignore */ }
-  return fallback;
-}
-
-// In KolStoreProvider:
-const [kols, setKols] = useState<KOL[]>(() => loadFromStorage(STORAGE_KEY_KOLS, MOCK_KOLS));
-const [agencies, setAgencies] = useState<Agency[]>(() => loadFromStorage(STORAGE_KEY_AGENCIES, MOCK_AGENCIES));
-
-useEffect(() => { localStorage.setItem(STORAGE_KEY_KOLS, JSON.stringify(kols)); }, [kols]);
-useEffect(() => { localStorage.setItem(STORAGE_KEY_AGENCIES, JSON.stringify(agencies)); }, [agencies]);
+## Layout Change (TodaysFocusPage)
 ```
+Today's Focus (horizontal scroll cards)
+─────────────────────────────────────────
+Pre-publish Board (left, 2/3) | Stage Dashboard (right, 1/3)
+```
+Use `grid grid-cols-1 lg:grid-cols-3 gap-6` for the bottom section.
 
 ## Verification
-1. Create a new agency from the Agencies page
-2. Copy the portal link
-3. Open the link — should show the agency portal (not "Invalid Access Link")
-4. Refresh the dashboard — agencies and KOLs should persist
-5. Existing mock agency links should still work
+- Stage counts should match real Supabase data
+- Bars animate on mount
+- Responsive: stacks vertically on small screens
