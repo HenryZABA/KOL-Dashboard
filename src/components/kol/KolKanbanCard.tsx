@@ -18,7 +18,7 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
   return (
     <div
       className={cn(
-        'rounded-md border bg-card p-3 shadow-card transition-shadow hover:shadow-card-hover space-y-2',
+        'flex flex-col rounded-md border bg-card p-3 shadow-card transition-shadow hover:shadow-card-hover space-y-2 min-h-[120px]',
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
@@ -57,7 +57,7 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pt-1 mt-auto">
         <div className="flex items-center gap-1">
           <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
           <span className={cn('text-[11px]', overdue ? 'text-overdue font-medium' : 'text-muted-foreground')}>
