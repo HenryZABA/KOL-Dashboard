@@ -1,0 +1,32 @@
+
+-- Reassign KOLs: 4 to In-House, 4 to Luminary宁波, 4 to Inpander
+UPDATE kols SET agency_id = '8ce44cda-2284-4b3a-a18c-5c8e257a80d9'
+WHERE id IN (
+  'f7088766-8a30-401e-a5a5-8e7ae5d6c711',
+  '5e4e601d-788a-4b70-99e0-e2780a5f1517',
+  '79f01a39-3bb9-43bd-8c70-180c9dec252a',
+  'b233e643-670c-4455-9c72-98d7641a2aa6'
+);
+
+UPDATE kols SET agency_id = '17f06ab3-c9bd-415f-b008-127aea6c5784'
+WHERE id IN (
+  '4cef2184-5970-4a47-9c7c-4e149843c4dd',
+  '33f46003-d1be-409d-a4b9-9fa60c18485c',
+  '8e943994-d591-492b-b472-211bec970bec',
+  '10646ea1-c4c4-416b-b06b-17c36e217820'
+);
+
+UPDATE kols SET agency_id = 'df80e445-7c8a-466f-824a-341618aaf452'
+WHERE id IN (
+  'eca85c2b-c588-41a2-9ea0-ba14fda41b6b',
+  '0a73c9d6-8566-4a30-9745-59a0b7a425eb',
+  'fa2a3483-1064-4420-8cd4-5da3d8039201',
+  '0cb1aafa-2888-4faf-8e5e-f1884cf91690'
+);
+
+-- Delete old agencies (no KOLs reference them now)
+DELETE FROM agencies WHERE id IN (
+  'a1000000-0000-0000-0000-000000000001',
+  'a1000000-0000-0000-0000-000000000002',
+  'a1000000-0000-0000-0000-000000000003'
+);
