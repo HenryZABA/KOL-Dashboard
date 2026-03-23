@@ -4,9 +4,10 @@ import { useKolStore } from '@/lib/kol-store';
 import { AgencyKolTable } from '@/components/agency/AgencyKolTable';
 import { AddKolForm } from '@/components/agency/AddKolForm';
 import { KolDetailPanel } from '@/components/agency/KolDetailPanel';
+import { CsvImportDialog } from '@/components/agency/CsvImportDialog';
 import { Button } from '@/components/ui/button';
 import type { KOL, Platform } from '@/lib/mock-data';
-import { Building2, Plus } from 'lucide-react';
+import { Building2, Plus, Upload } from 'lucide-react';
 
 export default function AgencyPortalPage() {
   const { token } = useParams<{ token: string }>();
@@ -23,6 +24,7 @@ export default function AgencyPortalPage() {
   }, [kols, agency]);
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [selectedKol, setSelectedKol] = useState<KOL | null>(null);
 
   // Keep selected KOL in sync with store updates
@@ -79,10 +81,16 @@ export default function AgencyPortalPage() {
               <p className="text-xs text-muted-foreground">Agency Portal</p>
             </div>
           </div>
-          <Button size="sm" onClick={() => setShowAddForm(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Add KOL
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-1.5">
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </Button>
+            <Button size="sm" onClick={() => setShowAddForm(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Add KOL
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -108,6 +116,13 @@ export default function AgencyPortalPage() {
         onUpdateStage={updateKolStage}
         onUpdateField={updateKolField}
         onToggleFocus={toggleTodaysFocus}
+      />
+
+      {/* CSV Import */}
+      <CsvImportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        fixedAgency={agency}
       />
     </div>
   );

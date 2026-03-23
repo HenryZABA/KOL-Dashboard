@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils';
 interface CsvImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When provided, all imported KOLs are assigned to this agency (skip agency column matching) */
+  fixedAgency?: Agency;
 }
 
 interface ParsedRow {
@@ -64,7 +66,7 @@ function parsePlatform(raw: string): Platform[] {
   return result;
 }
 
-function parseTsv(text: string, agencies: Agency[]): ParsedRow[] {
+function parseTsv(text: string, agencies: Agency[], fixedAgency?: Agency): ParsedRow[] {
   const lines = text.trim().split('\n').map((l) => l.split('\t'));
   if (lines.length < 2) return [];
 
@@ -88,10 +90,19 @@ function parseTsv(text: string, agencies: Agency[]): ParsedRow[] {
     // Merge platform + type columns for broader platform detection
     const platformText = [raw.platform || '', raw.type || ''].join(' ');
     const platforms = parsePlatform(platformText);
-    const agencyName = raw.agencyName || '';
-    const matchedAgency = agencies.find(
-      (a) => a.name.toLowerCase().replace(/\s+/g, '') === agencyName.toLowerCase().replace(/\s+/g, ''),
-    );
+
+    let agencyName = '';
+    let matchedAgency: Agency | undefined;
+
+    if (fixedAgency) {
+      matchedAgency = fixedAgency;
+      agencyName = fixedAgency.name;
+    } else {
+      agencyName = raw.agencyName || '';
+      matchedAgency = agencies.find(
+        (a) => a.name.toLowerCase().replace(/\s+/g, '') === agencyName.toLowerCase().replace(/\s+/g, ''),
+      );
+    }
 
     rows.push({
       name: raw.name,
@@ -106,7 +117,7 @@ function parseTsv(text: string, agencies: Agency[]): ParsedRow[] {
   return rows;
 }
 
-export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
+export function CsvImportDialog({ open, onOpenChange, fixedAgency }: CsvImportDialogProps) {
   const { agencies, addKol } = useKolStore();
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState<ParsedRow[] | null>(null);
@@ -114,10 +125,10 @@ export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
   const [result, setResult] = useState<{ success: number; skipped: number } | null>(null);
 
   const handleParse = useCallback(() => {
-    const rows = parseTsv(rawText, agencies);
+    const rows = parseTsv(rawText, agencies, fixedAgency);
     setParsed(rows);
     setResult(null);
-  }, [rawText, agencies]);
+  }, [rawText, agencies, fixedAgency]);
 
   const handleImport = useCallback(async () => {
     if (!parsed) return;

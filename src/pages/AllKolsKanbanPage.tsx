@@ -2,19 +2,16 @@ import { useMemo, useState } from 'react';
 import { useKolStore } from '@/lib/kol-store';
 import { KANBAN_COLUMNS, getKanbanColumn, isOverdue, type Platform } from '@/lib/mock-data';
 import { KolKanbanColumn } from '@/components/kol/KolKanbanColumn';
-import { CsvImportDialog } from '@/components/agency/CsvImportDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Users, Upload } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 export default function AllKolsKanbanPage() {
   const { kols, agencies } = useKolStore();
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
   const [overdueOnly, setOverdueOnly] = useState(false);
-  const [showImport, setShowImport] = useState(false);
 
   const filteredKols = useMemo(() => {
     return kols.filter((kol) => {
@@ -39,10 +36,6 @@ export default function AllKolsKanbanPage() {
         <div className="flex items-center gap-2 mr-auto">
           <Users className="h-5 w-5 text-foreground" />
           <h1 className="text-lg font-semibold text-foreground">All KOLs</h1>
-          <Button variant="outline" size="sm" className="ml-3 gap-1.5 text-xs h-8" onClick={() => setShowImport(true)}>
-            <Upload className="h-3.5 w-3.5" />
-            Import CSV
-          </Button>
         </div>
 
         <Select value={agencyFilter} onValueChange={setAgencyFilter}>
@@ -93,8 +86,6 @@ export default function AllKolsKanbanPage() {
           ))}
         </div>
       </div>
-
-      <CsvImportDialog open={showImport} onOpenChange={setShowImport} />
     </div>
   );
 }
