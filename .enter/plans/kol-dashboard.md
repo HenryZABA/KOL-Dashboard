@@ -1,7 +1,10 @@
-## Plan: Fix footer height in Kanban cards
+## Plan: Fix footer pinned to card bottom
 
-### Change
-Add `h-6` to the footer div to ensure the days + agency row is always the same height across all cards.
+### Problem
+`space-y-2` adds uniform spacing between all children, overriding `mt-auto` on the footer. Footer doesn't stick to the bottom.
+
+### Fix
+Remove `space-y-2` from the card container. Add `gap-2` to the content wrapper, keep `mt-auto` on footer so it's always pinned to the bottom.
 
 ### File
-- `src/components/kol/KolKanbanCard.tsx` line 60
+- `src/components/kol/KolKanbanCard.tsx`
