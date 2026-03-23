@@ -72,17 +72,17 @@ export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) 
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
-      {/* Header: name + platforms */}
+      {/* Header: name + agency/platforms */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-semibold text-card-foreground leading-tight">{kol.name}</span>
+        <span className="text-sm font-semibold text-card-foreground leading-tight">{kol.name}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
           <PlatformIcons platforms={kol.platforms} />
+          {agency && (
+            <Badge variant="secondary" className="text-[10px] font-normal py-0.5">
+              {agency.name}
+            </Badge>
+          )}
         </div>
-        {agency && (
-          <Badge variant="secondary" className="text-[10px] font-normal shrink-0 py-0.5">
-            {agency.name}
-          </Badge>
-        )}
       </div>
 
       {/* Stage — fixed height to keep cards aligned */}
