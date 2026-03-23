@@ -11,8 +11,9 @@ export default function TodaysFocusPage() {
   const focusKols = useMemo(() => {
     return kols.filter(
       (kol) =>
-        kol.isTodaysFocus ||
-        (isOverdue(kol.stageUpdatedAt) && kol.currentStage !== 'published'),
+        kol.currentStage !== 'pre_publish' &&
+        (kol.isTodaysFocus ||
+          (isOverdue(kol.stageUpdatedAt) && kol.currentStage !== 'published')),
     );
   }, [kols]);
 
