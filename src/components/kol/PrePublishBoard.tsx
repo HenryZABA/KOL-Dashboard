@@ -87,9 +87,16 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
           </div>
         )}
       </div>
+      {/* Agency badge */}
+      {agency && (
+        <div className="flex justify-end">
+          <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5">
+            {agency.name}
+          </Badge>
+        </div>
+      )}
     </div>
   );
 }
 
-// Suppress lint warning
 void FileCheck;
