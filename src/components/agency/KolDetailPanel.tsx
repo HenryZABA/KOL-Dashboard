@@ -217,39 +217,43 @@ export function KolDetailPanel({
             </>
           )}
 
-          <Separator />
+          {kol.currentStage !== 'pre_publish' && (
+            <>
+              <Separator />
 
-          {/* Review Material Link — only for current stage */}
-          <div className="space-y-3">
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <LinkIcon className="h-3 w-3" />
-              Review Material Link
-            </Label>
-            <div className="space-y-2.5">
-              {LINK_STAGES
-                .filter(({ key }) => {
-                  // For parallel stages, show both script and project
-                  if (kol.currentStage === 'writing_script' || kol.currentStage === 'creating_project') {
-                    return key === 'writing_script' || key === 'creating_project';
-                  }
-                  return key === kol.currentStage;
-                })
-                .map(({ key, label }) => (
-                <div key={key} className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-16 shrink-0">{label}</span>
-                  <Input
-                    placeholder="https://..."
-                    className="h-7 text-xs"
-                    value={kol.stageLinks?.[key] || ''}
-                    onChange={(e) => {
-                      const updated = { ...(kol.stageLinks || {}), [key]: e.target.value };
-                      onUpdateField(kol.id, { stageLinks: updated });
-                    }}
-                  />
+              {/* Review Material Link — only for current stage */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <LinkIcon className="h-3 w-3" />
+                  Review Material Link
+                </Label>
+                <div className="space-y-2.5">
+                  {LINK_STAGES
+                    .filter(({ key }) => {
+                      // For parallel stages, show both script and project
+                      if (kol.currentStage === 'writing_script' || kol.currentStage === 'creating_project') {
+                        return key === 'writing_script' || key === 'creating_project';
+                      }
+                      return key === kol.currentStage;
+                    })
+                    .map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-16 shrink-0">{label}</span>
+                      <Input
+                        placeholder="https://..."
+                        className="h-7 text-xs"
+                        value={kol.stageLinks?.[key] || ''}
+                        onChange={(e) => {
+                          const updated = { ...(kol.stageLinks || {}), [key]: e.target.value };
+                          onUpdateField(kol.id, { stageLinks: updated });
+                        }}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
 
           <Separator />
 
