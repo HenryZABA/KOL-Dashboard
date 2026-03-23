@@ -77,11 +77,6 @@ export function KolFocusCard({ kol, agency, onViewDetails }: KolFocusCardProps) 
         <span className="text-sm font-semibold text-card-foreground leading-tight">{kol.name}</span>
         <div className="flex items-center gap-1.5 shrink-0">
           <PlatformIcons platforms={kol.platforms} />
-          {agency && (
-            <Badge variant="secondary" className="text-[10px] font-normal py-0.5">
-              {agency.name}
-            </Badge>
-          )}
         </div>
       </div>
 
