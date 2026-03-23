@@ -1,9 +1,1 @@
-# Fix CSV parser for clean single-row format
-
-## Change
-1. Clear DB data
-2. Fix duplicate key overwrite bug (Category + Content Direction both → contentDirection, empty overwrites non-empty)
-3. Add "status" header matching (already exists but verify)
-
-## File
-`src/components/agency/CsvImportDialog.tsx` — fix raw value building to preserve first non-empty value
+The original code content of this argument has been omitted to save context. This is not actual code. Use read_file to check the current content of /workspace/thread/.enter/plans/kol-dashboard.md if needed.
