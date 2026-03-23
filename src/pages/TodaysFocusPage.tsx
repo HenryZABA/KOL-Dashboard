@@ -1,0 +1,45 @@
+import { useMemo } from 'react';
+import { useKolStore } from '@/lib/kol-store';
+import { isOverdue, getAgencyById } from '@/lib/mock-data';
+import { KolFocusCard } from '@/components/kol/KolFocusCard';
+import { Crosshair } from 'lucide-react';
+
+export default function TodaysFocusPage() {
+  const { kols, agencies } = useKolStore();
+
+  const focusKols = useMemo(() => {
+    return kols.filter(
+      (kol) =>
+        kol.isTodaysFocus ||
+        (isOverdue(kol.stageUpdatedAt) && kol.currentStage !== 'published'),
+    );
+  }, [kols]);
+
+  return (
+    <div className="p-6 space-y-5">
+      <div className="flex items-center gap-2">
+        <Crosshair className="h-5 w-5 text-foreground" />
+        <h1 className="text-lg font-semibold text-foreground">Today's Focus</h1>
+        <span className="text-sm text-muted-foreground">({focusKols.length})</span>
+      </div>
+
+      {focusKols.length === 0 ? (
+        <div className="flex items-center justify-center rounded-lg border border-dashed py-16">
+          <p className="text-sm text-muted-foreground">
+            No KOLs need attention right now. Everything is on track.
+          </p>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {focusKols.map((kol) => (
+            <KolFocusCard
+              key={kol.id}
+              kol={kol}
+              agency={getAgencyById(agencies, kol.agencyId)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
