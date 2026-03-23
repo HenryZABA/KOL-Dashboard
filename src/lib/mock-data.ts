@@ -1,4 +1,4 @@
-export type Platform = 'youtube' | 'tiktok' | 'instagram' | 'x';
+export type Platform = 'youtube' | 'tiktok' | 'instagram' | 'x' | 'facebook';
 
 export type Stage =
   | 'writing_idea'

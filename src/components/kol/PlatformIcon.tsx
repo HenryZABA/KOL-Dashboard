@@ -1,4 +1,4 @@
-import { Youtube, Instagram } from 'lucide-react';
+import { Youtube, Instagram, Facebook } from 'lucide-react';
 import type { Platform } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,7 @@ const PLATFORM_ICONS: Record<Platform, React.FC<{ className?: string }>> = {
   tiktok: ({ className }) => <TikTokIcon className={cn('h-4 w-4', className)} />,
   instagram: ({ className }) => <Instagram className={cn('h-4 w-4', className)} />,
   x: ({ className }) => <XIcon className={cn('h-4 w-4', className)} />,
+  facebook: ({ className }) => <Facebook className={cn('h-4 w-4', className)} />,
 };
 
 const PLATFORM_COLORS: Record<Platform, string> = {
@@ -26,6 +27,7 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   tiktok: 'text-foreground',
   instagram: 'text-pink-500',
   x: 'text-foreground',
+  facebook: 'text-blue-600',
 };
 
 interface PlatformIconProps {

@@ -38,7 +38,7 @@ const PLATFORM_MAP: Record<string, Platform> = {
   tt: 'tiktok', tiktok: 'tiktok',
   ig: 'instagram', ins: 'instagram', instagram: 'instagram',
   x: 'x', twitter: 'x',
-  fb: 'youtube', facebook: 'youtube', // FB not in our Platform type, fallback
+  fb: 'facebook', facebook: 'facebook',
 };
 
 // ─── Status mapping (Chinese → Stage) ──────────────────────
