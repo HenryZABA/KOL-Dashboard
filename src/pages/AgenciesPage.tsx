@@ -75,19 +75,19 @@ export default function AgenciesPage() {
     }
   };
 
-  const handleAddAgency = (e: React.FormEvent) => {
+  const handleAddAgency = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAgencyName.trim()) return;
-    const agency = addAgency(newAgencyName.trim());
+    const agency = await addAgency(newAgencyName.trim());
     setNewAgencyName('');
     setShowAddDialog(false);
     setCreatedAgency(agency);
   };
 
-  const handleDeleteAgency = () => {
+  const handleDeleteAgency = async () => {
     if (!deleteTarget) return;
     const agency = agencies.find((a) => a.id === deleteTarget);
-    removeAgency(deleteTarget);
+    await removeAgency(deleteTarget);
     setDeleteTarget(null);
     toast({ title: 'Agency removed', description: `${agency?.name} and its KOLs have been removed.` });
   };

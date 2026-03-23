@@ -10,7 +10,7 @@ import { Building2, Plus } from 'lucide-react';
 
 export default function AgencyPortalPage() {
   const { token } = useParams<{ token: string }>();
-  const { kols, agencies, addKol, updateKolStage, updateKolField, toggleTodaysFocus } = useKolStore();
+  const { kols, agencies, loading, addKol, updateKolStage, updateKolField, toggleTodaysFocus } = useKolStore();
 
   const agency = useMemo(() => {
     if (!token) return undefined;
@@ -31,6 +31,14 @@ export default function AgencyPortalPage() {
     return kols.find((k) => k.id === selectedKol.id) || null;
   }, [kols, selectedKol]);
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    );
+  }
+
   if (!agency) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -44,14 +52,14 @@ export default function AgencyPortalPage() {
     );
   }
 
-  const handleAddKol = (data: {
+  const handleAddKol = async (data: {
     name: string;
     platforms: Platform[];
     profileUrl?: string;
     contentDirection?: string;
     notes?: string;
   }) => {
-    addKol({
+    await addKol({
       ...data,
       agencyId: agency.id,
     });
