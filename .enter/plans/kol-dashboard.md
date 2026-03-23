@@ -1,10 +1,10 @@
-## Plan: Fix footer pinned to card bottom
+## Plan: Add agency badge back to Focus cards
 
-### Problem
-`space-y-2` adds uniform spacing between all children, overriding `mt-auto` on the footer. Footer doesn't stick to the bottom.
+### Change
+- Add `agency` prop to `KolFocusCard`
+- Show agency badge next to the days row in the bottom section
+- Pass `agency` from `TodaysFocusPage`
 
-### Fix
-Remove `space-y-2` from the card container. Add `gap-2` to the content wrapper, keep `mt-auto` on footer so it's always pinned to the bottom.
-
-### File
-- `src/components/kol/KolKanbanCard.tsx`
+### Files
+- `src/components/kol/KolFocusCard.tsx`
+- `src/pages/TodaysFocusPage.tsx`
