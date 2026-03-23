@@ -19,8 +19,19 @@ export default function AgenciesPage() {
 
   const copyLink = (token: string) => {
     const url = `${window.location.origin}/agency/${token}`;
-    navigator.clipboard.writeText(url);
-    toast({ title: 'Link copied', description: 'Agency portal link copied to clipboard.' });
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      toast({ title: 'Link copied', description: 'Agency portal link copied to clipboard.' });
+    } catch {
+      toast({ title: 'Copy failed', description: url, variant: 'destructive' });
+    }
   };
 
   return (
