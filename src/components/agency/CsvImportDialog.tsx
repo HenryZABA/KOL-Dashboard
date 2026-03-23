@@ -31,10 +31,12 @@ interface ParsedRow {
 
 const PLATFORM_MAP: Record<string, Platform> = {
   yt: 'youtube',
+  ytb: 'youtube',
   youtube: 'youtube',
   tt: 'tiktok',
   tiktok: 'tiktok',
   ig: 'instagram',
+  ins: 'instagram',
   instagram: 'instagram',
   x: 'x',
   twitter: 'x',
@@ -47,6 +49,7 @@ function matchHeader(header: string): string | null {
   if (h === 'account link' || h === 'profile url' || h === 'link' || h === 'url') return 'profileUrl';
   if (h === 'category' || h === 'content direction' || h === 'direction') return 'contentDirection';
   if (h === 'platform') return 'platform';
+  if (h === 'type') return 'type';
   if (h === 'agency name' || h === 'agency') return 'agencyName';
   return null;
 }
@@ -82,10 +85,12 @@ function parseTsv(text: string, agencies: Agency[]): ParsedRow[] {
 
     if (!raw.name) continue;
 
-    const platforms = parsePlatform(raw.platform || '');
+    // Merge platform + type columns for broader platform detection
+    const platformText = [raw.platform || '', raw.type || ''].join(' ');
+    const platforms = parsePlatform(platformText);
     const agencyName = raw.agencyName || '';
     const matchedAgency = agencies.find(
-      (a) => a.name.toLowerCase() === agencyName.toLowerCase(),
+      (a) => a.name.toLowerCase().replace(/\s+/g, '') === agencyName.toLowerCase().replace(/\s+/g, ''),
     );
 
     rows.push({
