@@ -34,6 +34,7 @@ function dbToKol(row: Record<string, unknown>, changeLogs: Record<string, unknow
     feishuUrl: (row.feishu_url as string) || undefined,
     isTodaysFocus: row.is_todays_focus as boolean,
     agencyId: row.agency_id as string,
+    stageLinks: (row.stage_links as Record<string, string>) || {},
     stageUpdatedAt: row.stage_updated_at as string,
     createdAt: row.created_at as string,
     changeLog: changeLogs
@@ -131,6 +132,7 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
     if (updates.videoVersion !== undefined) dbUpdates.video_version = updates.videoVersion;
     if (updates.feishuUrl !== undefined) dbUpdates.feishu_url = updates.feishuUrl;
     if (updates.isTodaysFocus !== undefined) dbUpdates.is_todays_focus = updates.isTodaysFocus;
+    if (updates.stageLinks !== undefined) dbUpdates.stage_links = updates.stageLinks;
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 

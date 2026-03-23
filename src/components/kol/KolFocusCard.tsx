@@ -4,7 +4,7 @@ import { ParallelStageLabel } from '@/components/kol/StageLabel';
 import type { KOL, Stage, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { Clock } from 'lucide-react';
+import { Clock, ExternalLink } from 'lucide-react';
 
 const STAGE_PROGRESS: Record<Stage, number> = {
   writing_idea: 10,
@@ -28,7 +28,7 @@ interface KolFocusCardProps {
   agency?: Agency;
 }
 
-function StageProgressBar({ stage }: { stage: Stage }) {
+function StageProgressBar({ stage, stageLinks }: { stage: Stage; stageLinks?: Record<string, string> }) {
   const pct = STAGE_PROGRESS[stage];
   const currentIdx = STAGE_STEPS.findIndex((s) => s.stages.includes(stage));
 
@@ -43,17 +43,38 @@ function StageProgressBar({ stage }: { stage: Stage }) {
       </div>
       {/* Step labels */}
       <div className="flex justify-between">
-        {STAGE_STEPS.map((step, idx) => (
-          <span
-            key={step.label}
-            className={cn(
-              'text-[9px] leading-none font-medium',
-              idx <= currentIdx ? 'text-primary' : 'text-muted-foreground/50',
-            )}
-          >
-            {step.label}
-          </span>
-        ))}
+        {STAGE_STEPS.map((step, idx) => {
+          // Check if any stage in this step has a link
+          const link = stageLinks
+            ? step.stages.map((s) => stageLinks[s]).find((url) => url && url.trim() !== '')
+            : undefined;
+
+          const labelClass = cn(
+            'text-[9px] leading-none font-medium',
+            idx <= currentIdx ? 'text-primary' : 'text-muted-foreground/50',
+          );
+
+          if (link) {
+            return (
+              <a
+                key={step.label}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(labelClass, 'underline decoration-dotted underline-offset-2 hover:opacity-70 inline-flex items-center gap-0.5')}
+              >
+                {step.label}
+                <ExternalLink className="h-2 w-2" />
+              </a>
+            );
+          }
+
+          return (
+            <span key={step.label} className={labelClass}>
+              {step.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -106,7 +127,7 @@ export function KolFocusCard({ kol, agency }: KolFocusCardProps) {
         </div>
 
         {/* Progress bar */}
-        <StageProgressBar stage={kol.currentStage} />
+        <StageProgressBar stage={kol.currentStage} stageLinks={kol.stageLinks} />
       </div>
     </div>
   );

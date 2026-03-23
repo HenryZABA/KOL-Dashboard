@@ -19,7 +19,7 @@ import { StageLabel } from '@/components/kol/StageLabel';
 import type { KOL, Stage } from '@/lib/mock-data';
 import { STAGE_LABELS, getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { Clock } from 'lucide-react';
+import { Clock, Link as LinkIcon } from 'lucide-react';
 
 interface KolDetailPanelProps {
   kol: KOL | null;
@@ -37,6 +37,14 @@ const ALLOWED_STAGES: Stage[] = [
   'video_production',
   'pre_publish',
   'published',
+];
+
+const LINK_STAGES: { key: Stage; label: string }[] = [
+  { key: 'writing_idea', label: 'Idea' },
+  { key: 'writing_script', label: 'Script' },
+  { key: 'creating_project', label: 'Project' },
+  { key: 'video_production', label: 'Video' },
+  { key: 'pre_publish', label: 'Review' },
 ];
 
 export function KolDetailPanel({
@@ -208,6 +216,35 @@ export function KolDetailPanel({
               </div>
             </>
           )}
+
+          <Separator />
+
+          {/* Review Material Links */}
+          <div className="space-y-3">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <LinkIcon className="h-3 w-3" />
+              Review Material Links
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              Add links to review materials for each stage (Google Docs, Feishu, etc.)
+            </p>
+            <div className="space-y-2.5">
+              {LINK_STAGES.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-16 shrink-0">{label}</span>
+                  <Input
+                    placeholder="https://..."
+                    className="h-7 text-xs"
+                    value={kol.stageLinks?.[key] || ''}
+                    onChange={(e) => {
+                      const updated = { ...(kol.stageLinks || {}), [key]: e.target.value };
+                      onUpdateField(kol.id, { stageLinks: updated });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <Separator />
 

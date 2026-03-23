@@ -33,6 +33,7 @@ export interface KOL {
   agencyId: string;
   stageUpdatedAt: string;
   createdAt: string;
+  stageLinks?: Record<string, string>;
   changeLog: ChangeLogEntry[];
 }
 
