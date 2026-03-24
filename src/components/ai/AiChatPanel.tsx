@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useAiChat, type ChatMessage } from '@/hooks/useAiChat';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -273,11 +274,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {message.content && (
           <div
             className={cn(
-              'rounded-2xl rounded-bl-md bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap',
+              'rounded-2xl rounded-bl-md bg-muted px-4 py-2.5 text-sm',
               message.isStreaming && 'animate-pulse-subtle',
             )}
           >
-            {message.content}
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            </div>
             {message.isStreaming && (
               <span className="inline-block w-1 h-3.5 bg-foreground/50 animate-pulse ml-0.5 align-text-bottom" />
             )}
