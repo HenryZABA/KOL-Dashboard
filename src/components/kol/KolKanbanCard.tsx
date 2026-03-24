@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { PlatformIcons } from '@/components/kol/PlatformIcon';
+import { PlatformIcons, LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KOL, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,11 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
           <span className="text-sm font-medium text-card-foreground truncate">{kol.name}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <PlatformIcons platforms={kol.platforms} className="shrink-0" />
+          {kol.currentStage === 'published' ? (
+            <LinkedPlatformIcons platforms={kol.platforms} stageLinks={kol.stageLinks} className="shrink-0" />
+          ) : (
+            <PlatformIcons platforms={kol.platforms} className="shrink-0" />
+          )}
         </div>
       </div>
 

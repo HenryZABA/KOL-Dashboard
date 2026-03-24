@@ -55,3 +55,54 @@ export function PlatformIcons({ platforms, className }: PlatformIconsProps) {
     </div>
   );
 }
+
+/** Parse pub_* entries from stageLinks into a platform -> url map */
+function parsePubLinks(stageLinks?: Record<string, string>): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!stageLinks) return map;
+  for (const [key, val] of Object.entries(stageLinks)) {
+    if (key.startsWith('pub_')) {
+      const pipeIdx = val.indexOf('|');
+      if (pipeIdx >= 0) {
+        const platform = val.slice(0, pipeIdx);
+        const url = val.slice(pipeIdx + 1);
+        if (url) map[platform] = url;
+      }
+    }
+  }
+  return map;
+}
+
+interface LinkedPlatformIconsProps {
+  platforms: Platform[];
+  stageLinks?: Record<string, string>;
+  className?: string;
+}
+
+/** Platform icons that link to publication URLs when available */
+export function LinkedPlatformIcons({ platforms, stageLinks, className }: LinkedPlatformIconsProps) {
+  const pubMap = parsePubLinks(stageLinks);
+
+  return (
+    <div className={cn('flex items-center gap-1', className)}>
+      {platforms.map((p) => {
+        const url = pubMap[p];
+        if (url) {
+          return (
+            <a
+              key={p}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded p-0.5 hover:bg-accent transition-colors"
+              title={`View on ${p}`}
+            >
+              <PlatformIcon platform={p} />
+            </a>
+          );
+        }
+        return <PlatformIcon key={p} platform={p} className="opacity-30" />;
+      })}
+    </div>
+  );
+}
