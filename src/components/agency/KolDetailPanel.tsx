@@ -32,7 +32,6 @@ interface KolDetailPanelProps {
 const ALLOWED_STAGES: Stage[] = [
   'writing_idea',
   'writing_script',
-  'creating_project',
   'video_production',
   'pre_publish',
   'published',
