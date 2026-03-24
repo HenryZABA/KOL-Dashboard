@@ -38,7 +38,7 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-lg border bg-card p-5 shadow-card transition-shadow hover:shadow-card-hover min-h-[160px]',
+        'flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-card transition-shadow hover:shadow-card-hover',
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
