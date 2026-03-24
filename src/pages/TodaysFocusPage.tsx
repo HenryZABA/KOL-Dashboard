@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 export default function TodaysFocusPage() {
   const { kols, agencies, toggleTodaysFocus } = useKolStore();
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   // Agencies that have at least 1 KOL
   const activeAgencies = useMemo(() => {
@@ -25,17 +26,19 @@ export default function TodaysFocusPage() {
   const focusKols = useMemo(() => {
     return filteredKols.filter(
       (kol) =>
+        !dismissed.has(kol.id) &&
         kol.currentStage !== 'pre_publish' &&
         (kol.isTodaysFocus ||
           (isOverdue(kol.stageUpdatedAt) && kol.currentStage !== 'published')),
     );
-  }, [filteredKols]);
+  }, [filteredKols, dismissed]);
 
   const prePublishKols = useMemo(() => {
-    return filteredKols.filter((kol) => kol.currentStage === 'pre_publish');
-  }, [filteredKols]);
+    return filteredKols.filter((kol) => kol.currentStage === 'pre_publish' && !dismissed.has(kol.id));
+  }, [filteredKols, dismissed]);
 
   const handleDismiss = useCallback((kolId: string) => {
+    setDismissed((prev) => new Set(prev).add(kolId));
     toggleTodaysFocus(kolId);
   }, [toggleTodaysFocus]);
 
