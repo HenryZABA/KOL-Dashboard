@@ -40,7 +40,6 @@ const ALLOWED_STAGES: Stage[] = [
 const LINK_STAGES: { key: Stage; label: string }[] = [
   { key: 'writing_idea', label: 'Idea' },
   { key: 'writing_script', label: 'Script' },
-  { key: 'creating_project', label: 'Project' },
   { key: 'video_production', label: 'Video' },
   { key: 'published', label: 'Published' },
 ];
@@ -144,7 +143,7 @@ export function KolDetailPanel({
           </div>
 
           {/* Stage-specific fields */}
-          {(kol.currentStage === 'writing_script' || kol.currentStage === 'creating_project') && (
+          {kol.currentStage === 'writing_script' && (
             <>
               <Separator />
               <div className="space-y-3">
@@ -204,8 +203,8 @@ export function KolDetailPanel({
                   {LINK_STAGES
                     .filter(({ key }) => {
                       // For parallel stages, show both script and project
-                      if (kol.currentStage === 'writing_script' || kol.currentStage === 'creating_project') {
-                        return key === 'writing_script' || key === 'creating_project';
+                      if (kol.currentStage === 'writing_script') {
+                        return key === 'writing_script';
                       }
                       return key === kol.currentStage;
                     })
