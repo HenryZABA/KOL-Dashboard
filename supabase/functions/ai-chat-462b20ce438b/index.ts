@@ -18,21 +18,41 @@ serve(async (req) => {
       throw new Error("AI_API_TOKEN is not configured");
     }
 
-    const { messages, model } = await req.json();
+    const { messages, model, saveToKb, fileName, fileContent } = await req.json();
 
-    // Fetch knowledge base entries for system context
+    // Set up Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // If saveToKb is true and there's file content, save it to knowledge base
+    if (saveToKb && fileContent && fileName) {
+      const title = fileName.replace(/\.[^/.]+$/, ""); // Remove extension for title
+      const { error: insertError } = await supabase.from("knowledge_base").insert({
+        title,
+        content: fileContent,
+        file_type: fileName.split(".").pop()?.toLowerCase() || "txt",
+      });
+      if (insertError) {
+        console.error("Failed to save to knowledge base:", insertError);
+      } else {
+        console.log(`Saved "${title}" to knowledge base`);
+      }
+    }
+
+    // Fetch knowledge base entries for system context
     const { data: kbEntries } = await supabase
       .from("knowledge_base")
       .select("title, content")
       .order("created_at");
 
-    let systemPrompt = `You are a helpful AI assistant for a KOL (Key Opinion Leader) marketing campaign management system. You help agency staff review copy, check publication info, and answer questions about KOL campaigns and brand guidelines.
+    let systemPrompt = `You are a helpful AI assistant for a KOL (Key Opinion Leader) marketing campaign management system. You help staff review copy, check publication info, and answer questions about KOL campaigns and brand guidelines.
 
 Always respond in the same language as the user's message. Be concise and professional.`;
+
+    if (saveToKb && fileContent && fileName) {
+      systemPrompt += `\n\nIMPORTANT: The user just uploaded a file named "${fileName}" and it has been automatically saved to the knowledge base. In your response, confirm that the document has been saved and provide a brief summary of the key points in the document.`;
+    }
 
     if (kbEntries && kbEntries.length > 0) {
       const kbText = kbEntries

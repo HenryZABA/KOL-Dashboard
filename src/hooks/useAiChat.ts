@@ -32,10 +32,13 @@ export function useAiChat() {
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, options?: { fileContent?: string; fileName?: string; saveToKb?: boolean }) => {
       abortRef.current = new AbortController();
 
-      const userMessage: ChatMessage = { role: 'user', content };
+      const displayContent = options?.fileName
+        ? `${content}\n\n📎 ${options.fileName}`
+        : content;
+      const userMessage: ChatMessage = { role: 'user', content: displayContent };
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: '',
@@ -49,6 +52,11 @@ export function useAiChat() {
 
       const blocks = new Map<number, { type: string; content: string }>();
 
+      // Build the actual message content for AI (includes full file content)
+      const aiContent = options?.fileContent
+        ? `${content}\n\n--- Attached file: ${options.fileName} ---\n${options.fileContent}`
+        : content;
+
       try {
         await fetchEventSource(
           `${SUPABASE_URL}/functions/v1/ai-chat-462b20ce438b`,
@@ -59,11 +67,14 @@ export function useAiChat() {
               Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
             },
             body: JSON.stringify({
-              messages: [...messages, userMessage].map((m) => ({
-                role: m.role,
-                content: m.content,
-              })),
+              messages: [
+                ...messages.map((m) => ({ role: m.role, content: m.content })),
+                { role: 'user', content: aiContent },
+              ],
               model: 'anthropic/claude-sonnet-4.5',
+              ...(options?.saveToKb && options?.fileContent
+                ? { saveToKb: true, fileName: options.fileName, fileContent: options.fileContent }
+                : {}),
             }),
             signal: abortRef.current.signal,
 

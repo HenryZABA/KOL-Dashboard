@@ -60,7 +60,10 @@ export default function KnowledgeBasePage() {
       </div>
 
       <p className="text-sm text-muted-foreground max-w-2xl">
-        Add brand guidelines, review standards, FAQs, and reference materials here. The AI assistant will automatically use this information when helping agencies.
+        Manage AI reference materials here. You can add entries manually, or upload documents via the{' '}
+        <a href="/dashboard/ai" className="text-primary font-medium hover:underline">AI Chat</a>{' '}
+        where they will be automatically analyzed and saved.
+        The AI assistant uses this information when helping agencies.
       </p>
 
       {loading ? (
