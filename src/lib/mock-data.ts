@@ -45,7 +45,7 @@ export interface Agency {
 
 export const STAGE_LABELS: Record<Stage, string> = {
   writing_idea: 'Idea',
-  writing_script: 'Script',
+  writing_script: 'Script / Project',
   creating_project: 'Project',
   video_production: 'Video',
   pre_publish: 'Pre-publish Confirmation',

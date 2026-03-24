@@ -40,6 +40,7 @@ const ALLOWED_STAGES: Stage[] = [
 const LINK_STAGES: { key: Stage; label: string }[] = [
   { key: 'writing_idea', label: 'Idea' },
   { key: 'writing_script', label: 'Script' },
+  { key: 'creating_project', label: 'Project' },
   { key: 'video_production', label: 'Video' },
   { key: 'published', label: 'Published' },
 ];
@@ -204,7 +205,7 @@ export function KolDetailPanel({
                     .filter(({ key }) => {
                       // For parallel stages, show both script and project
                       if (kol.currentStage === 'writing_script') {
-                        return key === 'writing_script';
+                        return key === 'writing_script' || key === 'creating_project';
                       }
                       return key === kol.currentStage;
                     })
