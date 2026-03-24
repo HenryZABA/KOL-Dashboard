@@ -32,7 +32,19 @@ export function SummaryBar() {
       overdueCount
     };
   }, [kols]);
-  const stageEntries = Object.entries(stats.stageCounts) as [Stage, number][];
+  const STAGE_ORDER: Stage[] = [
+    'writing_idea', 'writing_script', 'video_production', 'pre_publish', 'published',
+  ];
+  const stageEntries = STAGE_ORDER
+    .filter((s) => stats.stageCounts[s])
+    .map((s) => [s, stats.stageCounts[s]] as [Stage, number]);
+  // Also include creating_project count merged into writing_script
+  if (stats.stageCounts['creating_project']) {
+    const idx = stageEntries.findIndex(([s]) => s === 'writing_script');
+    if (idx >= 0) {
+      stageEntries[idx][1] += stats.stageCounts['creating_project'];
+    }
+  }
   return <div className="flex items-center gap-4 border-b px-6 py-3 bg-background overflow-x-auto">
       <div className="flex items-center gap-2 shrink-0">
         <span className="text-sm font-medium text-foreground">{stats.total}</span>
