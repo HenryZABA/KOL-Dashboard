@@ -1,14 +1,13 @@
-# Restore Today's Focus Toggle for Non-Pre-publish Stages
+# Clickable Platform Icons on Published Kanban Cards
 
 ## Context
-The toggle was fully removed earlier, but it should only be hidden for `pre_publish` (auto-flagged) and `published` stages. Idea, Script/Project, and Video stages still need the manual toggle.
+Published KOLs have publication links stored in `stageLinks` as `pub_N: "platform|url"`. The platform icons on their kanban cards should link to the corresponding publication URL when available.
 
 ## Changes
 
-### `src/components/agency/KolDetailPanel.tsx`
-- Re-add `onToggleFocus` to props interface
-- Re-add the Switch import
-- Add back the "Flag for Today's Focus" toggle section, conditionally rendered when `currentStage` is NOT `pre_publish` and NOT `published`
+### `src/components/kol/PlatformIcon.tsx`
+- Add a new `LinkedPlatformIcons` component that accepts `stageLinks` and renders each platform icon as a clickable `<a>` when a matching pub link exists (with hover effect), or as a plain icon otherwise.
+- Parse `pub_*` entries from `stageLinks` to build a `platform -> url` map.
 
-### `src/pages/AgencyPortalPage.tsx`
-- Re-add `toggleTodaysFocus` from `useKolStore` and pass as `onToggleFocus` prop to KolDetailPanel
+### `src/components/kol/KolKanbanCard.tsx`
+- When `kol.currentStage === 'published'`, render `LinkedPlatformIcons` instead of `PlatformIcons`, passing `kol.stageLinks`.
