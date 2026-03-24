@@ -48,16 +48,8 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
         <PlatformIcons platforms={kol.platforms} />
       </div>
 
-      {/* Details grid */}
+      {/* Details */}
       <div className="space-y-2 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Script</span>
-          <span className="font-medium text-card-foreground">v{kol.scriptVersion}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Video</span>
-          <span className="font-medium text-card-foreground">v{kol.videoVersion}</span>
-        </div>
         {kol.feishuUrl && (
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Materials</span>

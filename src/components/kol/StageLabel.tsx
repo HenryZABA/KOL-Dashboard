@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import type { KOL, Stage } from '@/lib/mock-data';
 import { STAGE_LABELS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
+import { ExternalLink } from 'lucide-react';
 
 const STAGE_COLORS: Record<Stage, string> = {
   writing_idea: 'bg-stage-idea/15 text-stage-idea border-stage-idea/30',
@@ -15,17 +16,34 @@ const STAGE_COLORS: Record<Stage, string> = {
 interface StageLabelProps {
   stage: Stage;
   className?: string;
+  link?: string;
 }
 
-export function StageLabel({ stage, className }: StageLabelProps) {
-  return (
+export function StageLabel({ stage, className, link }: StageLabelProps) {
+  const badge = (
     <Badge
       variant="outline"
-      className={cn('text-[11px] font-medium', STAGE_COLORS[stage], className)}
+      className={cn(
+        'text-[11px] font-medium',
+        STAGE_COLORS[stage],
+        link && 'cursor-pointer hover:opacity-80',
+        className,
+      )}
     >
       {STAGE_LABELS[stage]}
+      {link && <ExternalLink className="h-2.5 w-2.5 ml-0.5" />}
     </Badge>
   );
+
+  if (link) {
+    return (
+      <a href={link} target="_blank" rel="noopener noreferrer">
+        {badge}
+      </a>
+    );
+  }
+
+  return badge;
 }
 
 interface ParallelStageLabelProps {
@@ -35,21 +53,23 @@ interface ParallelStageLabelProps {
 
 export function ParallelStageLabel({ kol, className }: ParallelStageLabelProps) {
   const isParallel = kol.currentStage === 'writing_script' || kol.currentStage === 'creating_project';
+  const links = kol.stageLinks || {};
 
   if (!isParallel) {
-    return <StageLabel stage={kol.currentStage} className={className} />;
+    const currentLink = links[kol.currentStage] || '';
+    return <StageLabel stage={kol.currentStage} className={className} link={currentLink || undefined} />;
   }
 
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <div className="flex items-center gap-1.5">
-        <StageLabel stage="writing_script" />
+        <StageLabel stage="writing_script" link={links['writing_script'] || undefined} />
         <span className="text-[10px] text-muted-foreground">
           v{kol.scriptVersion} {kol.scriptComplete ? '(done)' : ''}
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-        <StageLabel stage="creating_project" />
+        <StageLabel stage="creating_project" link={links['creating_project'] || undefined} />
         <span className="text-[10px] text-muted-foreground">
           {kol.projectComplete ? '(done)' : '(in progress)'}
         </span>
