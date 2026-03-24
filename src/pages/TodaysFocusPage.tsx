@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useKolStore } from '@/lib/kol-store';
-import { isOverdue } from '@/lib/mock-data';
 import { KolFocusCard } from '@/components/kol/KolFocusCard';
 import { PrePublishBoard } from '@/components/kol/PrePublishBoard';
 import { StageDistributionPanel } from '@/components/kol/StageDistributionPanel';
@@ -10,7 +9,6 @@ import { cn } from '@/lib/utils';
 export default function TodaysFocusPage() {
   const { kols, agencies, toggleTodaysFocus } = useKolStore();
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   // Agencies that have at least 1 KOL
   const activeAgencies = useMemo(() => {
@@ -25,20 +23,17 @@ export default function TodaysFocusPage() {
 
   const focusKols = useMemo(() => {
     return filteredKols.filter(
-      (kol) =>
-        !dismissed.has(kol.id) &&
-        kol.currentStage !== 'pre_publish' &&
-        (kol.isTodaysFocus ||
-          (isOverdue(kol.stageUpdatedAt) && kol.currentStage !== 'published')),
+      (kol) => kol.isTodaysFocus && kol.currentStage !== 'pre_publish',
     );
-  }, [filteredKols, dismissed]);
+  }, [filteredKols]);
 
   const prePublishKols = useMemo(() => {
-    return filteredKols.filter((kol) => kol.currentStage === 'pre_publish' && !dismissed.has(kol.id));
-  }, [filteredKols, dismissed]);
+    return filteredKols.filter(
+      (kol) => kol.currentStage === 'pre_publish' && kol.isTodaysFocus,
+    );
+  }, [filteredKols]);
 
   const handleDismiss = useCallback((kolId: string) => {
-    setDismissed((prev) => new Set(prev).add(kolId));
     toggleTodaysFocus(kolId);
   }, [toggleTodaysFocus]);
 
