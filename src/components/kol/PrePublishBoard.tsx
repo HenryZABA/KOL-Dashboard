@@ -23,7 +23,7 @@ export function PrePublishBoard({ kols, agencies, onDismiss }: PrePublishBoardPr
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:w-[540px]">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:w-[540px] pt-3">
       {kols.map((kol) => {
         const agency = getAgencyById(agencies, kol.agencyId);
         return <PrePublishCard key={kol.id} kol={kol} agency={agency} onDismiss={onDismiss} />;
