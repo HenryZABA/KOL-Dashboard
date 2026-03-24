@@ -48,11 +48,12 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
         <PlatformIcons platforms={kol.platforms} />
       </div>
 
-      {/* Details */}
-      <div className="space-y-2 text-xs">
-        {kol.feishuUrl && (
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Materials</span>
+      {/* Footer: materials + days + agency, pushed to bottom */}
+      <div className="mt-auto flex flex-col gap-2.5">
+        {/* Materials */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Materials</span>
+          {kol.feishuUrl ? (
             <a
               href={kol.feishuUrl}
               target="_blank"
@@ -62,29 +63,24 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
               Feishu Doc
               <ExternalLink className="h-3 w-3" />
             </a>
-          </div>
-        )}
-        {!kol.feishuUrl && (
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Materials</span>
+          ) : (
             <span className="text-warning text-[11px] font-medium">Not submitted</span>
-          </div>
-        )}
-      </div>
-
-      {/* Footer: days + agency, bottom-left */}
-      <div className="mt-auto flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
-          <span className={cn('text-xs font-medium', overdue ? 'text-overdue' : 'text-muted-foreground')}>
-            {days}d
-          </span>
+          )}
         </div>
-        {agency && (
-          <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5">
-            {agency.name}
-          </Badge>
-        )}
+        {/* Days + agency */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
+            <span className={cn('text-xs font-medium', overdue ? 'text-overdue' : 'text-muted-foreground')}>
+              {days}d
+            </span>
+          </div>
+          {agency && (
+            <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5">
+              {agency.name}
+            </Badge>
+          )}
+        </div>
       </div>
     </div>
   );
