@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { PlatformIcons } from '@/components/kol/PlatformIcon';
+import { PlatformIcons, LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import { ParallelStageLabel } from '@/components/kol/StageLabel';
 import type { KOL, Stage, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
@@ -105,7 +105,11 @@ export function KolFocusCard({ kol, agency, onDismiss }: KolFocusCardProps) {
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-card-foreground leading-tight">{kol.name}</span>
         <div className="flex items-center gap-1.5 shrink-0">
-          <PlatformIcons platforms={kol.platforms} />
+          {kol.currentStage === 'published' ? (
+            <LinkedPlatformIcons platforms={kol.platforms} stageLinks={kol.stageLinks} />
+          ) : (
+            <PlatformIcons platforms={kol.platforms} />
+          )}
         </div>
       </div>
 
