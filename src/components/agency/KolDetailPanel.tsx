@@ -9,7 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChangeLog } from './ChangeLog';
@@ -26,7 +25,6 @@ interface KolDetailPanelProps {
   onOpenChange: (open: boolean) => void;
   onUpdateStage: (kolId: string, stage: Stage, note?: string) => void;
   onUpdateField: (kolId: string, updates: Partial<KOL>) => void;
-  onToggleFocus: (kolId: string) => void;
 }
 
 const ALLOWED_STAGES: Stage[] = [
@@ -77,7 +75,6 @@ export function KolDetailPanel({
   onOpenChange,
   onUpdateStage,
   onUpdateField,
-  onToggleFocus,
 }: KolDetailPanelProps) {
   const [selectedStage, setSelectedStage] = useState<Stage | ''>('');
 
@@ -227,22 +224,6 @@ export function KolDetailPanel({
               </div>
             </>
           )}
-
-          <Separator />
-
-          {/* Today's Focus toggle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Flag for Today's Focus</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Highlights this KOL on the dashboard
-              </p>
-            </div>
-            <Switch
-              checked={kol.isTodaysFocus}
-              onCheckedChange={() => onToggleFocus(kol.id)}
-            />
-          </div>
 
           <Separator />
 
