@@ -18,7 +18,6 @@ const NAV_ITEMS = [
   { to: '/dashboard', icon: Crosshair, label: "Today's Focus", end: true },
   { to: '/dashboard/kols', icon: Users, label: 'All KOLs', end: false },
   { to: '/dashboard/agencies', icon: Building2, label: 'Agencies', end: false },
-  { to: '/dashboard/inbox', icon: Inbox, label: 'Inbox', end: false, showBadge: true },
   { to: '/dashboard/ai', icon: MessageSquare, label: 'AI Assistant', end: false },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings', end: false },
 ];
@@ -70,12 +69,7 @@ export function AppSidebar() {
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  <span className="flex-1">{label}</span>
-                  {showBadge && pendingCount > 0 && (
-                    <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] flex items-center justify-center">
-                      {pendingCount}
-                    </Badge>
-                  )}
+                  <span>{label}</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -83,7 +77,31 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="px-4 py-3 border-t border-sidebar-border">
+      <SidebarFooter className="px-4 py-3 border-t border-sidebar-border space-y-2">
+        <NavLink
+          to="/dashboard/inbox"
+          className={cn(
+            'flex items-center gap-2 rounded-md px-0 py-1 text-sm transition-colors',
+            isActive('/dashboard/inbox', false)
+              ? 'text-sidebar-accent-foreground'
+              : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'
+          )}
+        >
+          <div className="h-7 w-7 rounded-full bg-sidebar-accent flex items-center justify-center relative">
+            <Inbox className="h-3.5 w-3.5 text-sidebar-accent-foreground" />
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="absolute -top-1 -right-1.5 h-4 min-w-4 px-1 text-[9px] flex items-center justify-center">
+                {pendingCount}
+              </Badge>
+            )}
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-medium">Inbox</span>
+            <span className="text-[10px] text-sidebar-foreground">
+              {pendingCount > 0 ? `${pendingCount} pending` : 'No pending'}
+            </span>
+          </div>
+        </NavLink>
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-medium text-sidebar-accent-foreground">
             A
