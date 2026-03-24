@@ -14,10 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChangeLog } from './ChangeLog';
 import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import { StageLabel } from '@/components/kol/StageLabel';
-import type { KOL, Stage } from '@/lib/mock-data';
+import type { KOL, Stage, Platform } from '@/lib/mock-data';
 import { STAGE_LABELS, getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { Clock, Link as LinkIcon } from 'lucide-react';
+import { Clock, Link as LinkIcon, Plus, Trash2 } from 'lucide-react';
 
 interface KolDetailPanelProps {
   kol: KOL | null;
@@ -40,7 +40,6 @@ const LINK_STAGES: { key: Stage; label: string }[] = [
   { key: 'writing_script', label: 'Script' },
   { key: 'creating_project', label: 'Project' },
   { key: 'video_production', label: 'Video' },
-  { key: 'published', label: 'Publication Link' },
 ];
 
 const REVISION_OPTIONS = [
@@ -65,6 +64,122 @@ function RevisionPicker({ value, onChange }: { value: number; onChange: (v: numb
           {opt.label}
         </Button>
       ))}
+    </div>
+  );
+}
+
+const PLATFORM_OPTIONS: { value: Platform; label: string }[] = [
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'x', label: 'X' },
+  { value: 'facebook', label: 'Facebook' },
+];
+
+interface PubLink {
+  platform: Platform;
+  url: string;
+}
+
+function parsePubLinks(stageLinks: Record<string, string> | undefined): PubLink[] {
+  if (!stageLinks) return [{ platform: 'youtube', url: '' }];
+  const entries: PubLink[] = [];
+  for (const [key, val] of Object.entries(stageLinks)) {
+    if (key.startsWith('pub_')) {
+      const pipeIdx = val.indexOf('|');
+      if (pipeIdx >= 0) {
+        entries.push({ platform: val.slice(0, pipeIdx) as Platform, url: val.slice(pipeIdx + 1) });
+      }
+    }
+  }
+  if (entries.length === 0) return [{ platform: 'youtube', url: '' }];
+  return entries;
+}
+
+function serializePubLinks(links: PubLink[], existingStageLinks: Record<string, string> | undefined): Record<string, string> {
+  // Remove old pub_ keys, keep other stage links
+  const cleaned: Record<string, string> = {};
+  if (existingStageLinks) {
+    for (const [key, val] of Object.entries(existingStageLinks)) {
+      if (!key.startsWith('pub_')) cleaned[key] = val;
+    }
+  }
+  links.forEach((link, i) => {
+    cleaned[`pub_${i}`] = `${link.platform}|${link.url}`;
+  });
+  return cleaned;
+}
+
+function PublicationLinks({
+  stageLinks,
+  onChange,
+}: {
+  stageLinks: Record<string, string> | undefined;
+  onChange: (updated: Record<string, string>) => void;
+}) {
+  const links = parsePubLinks(stageLinks);
+
+  const update = (newLinks: PubLink[]) => {
+    onChange(serializePubLinks(newLinks, stageLinks));
+  };
+
+  const handlePlatformChange = (idx: number, platform: Platform) => {
+    const next = [...links];
+    next[idx] = { ...next[idx], platform };
+    update(next);
+  };
+
+  const handleUrlChange = (idx: number, url: string) => {
+    const next = [...links];
+    next[idx] = { ...next[idx], url };
+    update(next);
+  };
+
+  const addRow = () => {
+    update([...links, { platform: 'youtube', url: '' }]);
+  };
+
+  const removeRow = (idx: number) => {
+    const next = links.filter((_, i) => i !== idx);
+    update(next.length > 0 ? next : [{ platform: 'youtube', url: '' }]);
+  };
+
+  return (
+    <div className="space-y-2.5">
+      {links.map((link, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <Select value={link.platform} onValueChange={(v) => handlePlatformChange(idx, v as Platform)}>
+            <SelectTrigger className="h-7 w-[110px] text-xs shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PLATFORM_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="https://..."
+            className="h-7 text-xs"
+            value={link.url}
+            onChange={(e) => handleUrlChange(idx, e.target.value)}
+          />
+          {links.length > 1 && (
+            <button
+              onClick={() => removeRow(idx)}
+              className="shrink-0 p-1 text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addRow}>
+        <Plus className="h-3 w-3" />
+        Add Link
+      </Button>
     </div>
   );
 }
@@ -187,7 +302,7 @@ export function KolDetailPanel({
             </>
           )}
 
-          {kol.currentStage !== 'pre_publish' && (
+          {kol.currentStage !== 'pre_publish' && kol.currentStage !== 'published' && (
             <>
               <Separator />
 
@@ -221,6 +336,24 @@ export function KolDetailPanel({
                     </div>
                   ))}
                 </div>
+              </div>
+            </>
+          )}
+
+          {kol.currentStage === 'published' && (
+            <>
+              <Separator />
+
+              {/* Publication Links — platform + url rows */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <LinkIcon className="h-3 w-3" />
+                  Publication Link
+                </Label>
+                <PublicationLinks
+                  stageLinks={kol.stageLinks}
+                  onChange={(updated) => onUpdateField(kol.id, { stageLinks: updated })}
+                />
               </div>
             </>
           )}
