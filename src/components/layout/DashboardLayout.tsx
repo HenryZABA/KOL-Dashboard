@@ -7,13 +7,16 @@ import { useEffect } from 'react';
 
 export function DashboardLayout() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, approvalStatus } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login', { replace: true });
     }
-  }, [user, loading, navigate]);
+    if (!loading && user && approvalStatus && approvalStatus !== 'approved') {
+      navigate('/pending-approval', { replace: true });
+    }
+  }, [user, loading, approvalStatus, navigate]);
 
   if (loading) {
     return (

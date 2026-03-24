@@ -5,6 +5,8 @@ import AllKolsKanbanPage from './pages/AllKolsKanbanPage';
 import AgenciesPage from './pages/AgenciesPage';
 import SettingsPage from './pages/SettingsPage';
 import BrandAiPage from './pages/BrandAiPage';
+import InboxPage from './pages/InboxPage';
+import PendingApprovalPage from './pages/PendingApprovalPage';
 import AgencyPortalPage from './pages/AgencyPortalPage';
 import NotFound from './pages/NotFound';
 
@@ -15,6 +17,11 @@ export const routers = [
     element: <LoginPage />,
   },
   {
+    path: '/pending-approval',
+    name: 'pending-approval',
+    element: <PendingApprovalPage />,
+  },
+  {
     path: '/dashboard',
     name: 'dashboard',
     element: <DashboardLayout />,
@@ -22,6 +29,7 @@ export const routers = [
       { index: true, element: <TodaysFocusPage /> },
       { path: 'kols', element: <AllKolsKanbanPage /> },
       { path: 'agencies', element: <AgenciesPage /> },
+      { path: 'inbox', element: <InboxPage /> },
       { path: 'ai', element: <BrandAiPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],

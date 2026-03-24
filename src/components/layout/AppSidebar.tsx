@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Crosshair, Users, Building2, Settings, LayoutDashboard, MessageSquare } from 'lucide-react';
+import { Crosshair, Users, Building2, Settings, LayoutDashboard, MessageSquare, Inbox } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -10,17 +10,30 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: Crosshair, label: "Today's Focus", end: true },
   { to: '/dashboard/kols', icon: Users, label: 'All KOLs', end: false },
   { to: '/dashboard/agencies', icon: Building2, label: 'Agencies', end: false },
+  { to: '/dashboard/inbox', icon: Inbox, label: 'Inbox', end: false, showBadge: true },
   { to: '/dashboard/ai', icon: MessageSquare, label: 'AI Assistant', end: false },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings', end: false },
 ];
 
 export function AppSidebar() {
   const location = useLocation();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    supabase
+      .from('user_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .then(({ count }) => setPendingCount(count || 0));
+  }, [location.pathname]);
 
   const isActive = (to: string, end: boolean) => {
     if (end) return location.pathname === to;
@@ -42,7 +55,7 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2 py-3">
         <SidebarMenu>
-          {NAV_ITEMS.map(({ to, icon: Icon, label, end }) => (
+          {NAV_ITEMS.map(({ to, icon: Icon, label, end, showBadge }) => (
             <SidebarMenuItem key={to}>
               <SidebarMenuButton
                 asChild
@@ -57,7 +70,12 @@ export function AppSidebar() {
                   )}
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{label}</span>
+                  <span className="flex-1">{label}</span>
+                  {showBadge && pendingCount > 0 && (
+                    <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px] flex items-center justify-center">
+                      {pendingCount}
+                    </Badge>
+                  )}
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

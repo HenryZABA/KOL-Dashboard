@@ -27,8 +27,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      toast({ title: 'Account created', description: 'You are now signed in.' });
-      navigate('/dashboard', { replace: true });
+      navigate('/pending-approval', { replace: true });
     } else {
       const { error } = await signIn(email, password);
       if (error) {

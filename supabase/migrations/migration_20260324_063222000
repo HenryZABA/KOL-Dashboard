@@ -1,0 +1,47 @@
+
+-- User profiles table with approval status
+CREATE TABLE user_profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  reviewed_at timestamptz
+);
+
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Authenticated users can read all profiles (for admin inbox)
+CREATE POLICY "Authenticated users can read profiles" ON user_profiles
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Authenticated users can update profiles (for approval)
+CREATE POLICY "Authenticated users can update profiles" ON user_profiles
+  FOR UPDATE USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- Users can insert their own profile (via trigger)
+CREATE POLICY "Service role can insert profiles" ON user_profiles
+  FOR INSERT WITH CHECK (true);
+
+-- Trigger to auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.user_profiles (id, email, status)
+  VALUES (NEW.id, NEW.email, 'pending');
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Auto-approve all existing users
+INSERT INTO user_profiles (id, email, status, reviewed_at)
+SELECT id, email, 'approved', now()
+FROM auth.users
+ON CONFLICT (id) DO NOTHING;
