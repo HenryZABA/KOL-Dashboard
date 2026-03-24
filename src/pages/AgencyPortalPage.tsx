@@ -7,7 +7,8 @@ import { KolDetailPanel } from '@/components/agency/KolDetailPanel';
 import { CsvImportDialog } from '@/components/agency/CsvImportDialog';
 import { Button } from '@/components/ui/button';
 import type { KOL, Platform } from '@/lib/mock-data';
-import { Building2, Plus, Upload } from 'lucide-react';
+import { Building2, Plus, Upload, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export default function AgencyPortalPage() {
   const { token } = useParams<{ token: string }>();
@@ -26,6 +27,13 @@ export default function AgencyPortalPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [selectedKol, setSelectedKol] = useState<KOL | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredAgencyKols = useMemo(() => {
+    if (!searchQuery.trim()) return agencyKols;
+    const q = searchQuery.toLowerCase();
+    return agencyKols.filter((k) => k.name.toLowerCase().includes(q));
+  }, [agencyKols, searchQuery]);
 
   // Keep selected KOL in sync with store updates
   const currentSelectedKol = useMemo(() => {
@@ -95,9 +103,18 @@ export default function AgencyPortalPage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-6xl mx-auto p-6">
+      <main className="max-w-6xl mx-auto p-6 space-y-4">
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search KOLs..."
+            className="pl-9 h-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
         <div className="bg-background rounded-lg border shadow-card">
-          <AgencyKolTable kols={agencyKols} onSelectKol={setSelectedKol} />
+          <AgencyKolTable kols={filteredAgencyKols} onSelectKol={setSelectedKol} />
         </div>
       </main>
 

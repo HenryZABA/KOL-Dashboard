@@ -3,14 +3,15 @@ import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KOL, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue, getAgencyById } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { Clock, ExternalLink, FileCheck } from 'lucide-react';
+import { Clock, ExternalLink, FileCheck, X } from 'lucide-react';
 
 interface PrePublishBoardProps {
   kols: KOL[];
   agencies: Agency[];
+  onDismiss?: (kolId: string) => void;
 }
 
-export function PrePublishBoard({ kols, agencies }: PrePublishBoardProps) {
+export function PrePublishBoard({ kols, agencies, onDismiss }: PrePublishBoardProps) {
   if (kols.length === 0) {
     return (
       <div className="flex items-center justify-center rounded-lg border border-dashed py-12">
@@ -25,13 +26,13 @@ export function PrePublishBoard({ kols, agencies }: PrePublishBoardProps) {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:w-[540px]">
       {kols.map((kol) => {
         const agency = getAgencyById(agencies, kol.agencyId);
-        return <PrePublishCard key={kol.id} kol={kol} agency={agency} />;
+        return <PrePublishCard key={kol.id} kol={kol} agency={agency} onDismiss={onDismiss} />;
       })}
     </div>
   );
 }
 
-function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
+function PrePublishCard({ kol, agency, onDismiss }: { kol: KOL; agency?: Agency; onDismiss?: (kolId: string) => void }) {
   const days = getDaysInStage(kol.stageUpdatedAt);
   const overdue = isOverdue(kol.stageUpdatedAt);
 
@@ -42,10 +43,21 @@ function PrePublishCard({ kol, agency }: { kol: KOL; agency?: Agency }) {
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
-      {/* Header: name left, platform icons right */}
+      {/* Header: name left, platform icons + dismiss right */}
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-semibold text-card-foreground">{kol.name}</span>
-        <PlatformIcons platforms={kol.platforms} />
+        <div className="flex items-center gap-1.5">
+          <PlatformIcons platforms={kol.platforms} />
+          {onDismiss && (
+            <button
+              onClick={() => onDismiss(kol.id)}
+              className="ml-1 rounded-sm p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
+              title="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Footer: materials + days + agency, pushed to bottom */}

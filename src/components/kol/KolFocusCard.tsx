@@ -4,7 +4,7 @@ import { ParallelStageLabel } from '@/components/kol/StageLabel';
 import type { KOL, Stage, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import { Clock, ExternalLink } from 'lucide-react';
+import { Clock, ExternalLink, X } from 'lucide-react';
 
 const STAGE_PROGRESS: Record<Stage, number> = {
   writing_idea: 10,
@@ -26,6 +26,7 @@ const STAGE_STEPS: { label: string; stages: Stage[] }[] = [
 interface KolFocusCardProps {
   kol: KOL;
   agency?: Agency;
+  onDismiss?: (kolId: string) => void;
 }
 
 function StageProgressBar({ stage, stageLinks }: { stage: Stage; stageLinks?: Record<string, string> }) {
@@ -80,7 +81,7 @@ function StageProgressBar({ stage, stageLinks }: { stage: Stage; stageLinks?: Re
   );
 }
 
-export function KolFocusCard({ kol, agency }: KolFocusCardProps) {
+export function KolFocusCard({ kol, agency, onDismiss }: KolFocusCardProps) {
   const days = getDaysInStage(kol.stageUpdatedAt);
   const overdue = isOverdue(kol.stageUpdatedAt);
 
@@ -91,11 +92,20 @@ export function KolFocusCard({ kol, agency }: KolFocusCardProps) {
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
-      {/* Header: name + agency/platforms */}
+      {/* Header: name + platforms + dismiss */}
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-card-foreground leading-tight">{kol.name}</span>
         <div className="flex items-center gap-1.5 shrink-0">
           <PlatformIcons platforms={kol.platforms} />
+          {onDismiss && (
+            <button
+              onClick={() => onDismiss(kol.id)}
+              className="ml-1 rounded-sm p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
+              title="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 

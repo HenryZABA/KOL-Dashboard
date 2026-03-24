@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useKolStore } from '@/lib/kol-store';
 import { isOverdue } from '@/lib/mock-data';
 import { KolFocusCard } from '@/components/kol/KolFocusCard';
@@ -8,7 +8,7 @@ import { Crosshair, FileCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function TodaysFocusPage() {
-  const { kols, agencies } = useKolStore();
+  const { kols, agencies, toggleTodaysFocus } = useKolStore();
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
 
   // Agencies that have at least 1 KOL
@@ -34,6 +34,10 @@ export default function TodaysFocusPage() {
   const prePublishKols = useMemo(() => {
     return filteredKols.filter((kol) => kol.currentStage === 'pre_publish');
   }, [filteredKols]);
+
+  const handleDismiss = useCallback((kolId: string) => {
+    toggleTodaysFocus(kolId);
+  }, [toggleTodaysFocus]);
 
   return (
     <div className="p-6 space-y-8">
@@ -83,7 +87,7 @@ export default function TodaysFocusPage() {
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-2">
             {focusKols.map((kol) => (
-              <KolFocusCard key={kol.id} kol={kol} agency={agencies.find((a) => a.id === kol.agencyId)} />
+              <KolFocusCard key={kol.id} kol={kol} agency={agencies.find((a) => a.id === kol.agencyId)} onDismiss={handleDismiss} />
             ))}
           </div>
         )}
@@ -98,7 +102,7 @@ export default function TodaysFocusPage() {
             <h2 className="text-lg font-semibold text-foreground">Pre-publish Confirmation</h2>
             <span className="text-sm text-muted-foreground">({prePublishKols.length})</span>
           </div>
-          <PrePublishBoard kols={prePublishKols} agencies={agencies} />
+          <PrePublishBoard kols={prePublishKols} agencies={agencies} onDismiss={handleDismiss} />
         </div>
 
         {/* Stage Distribution Dashboard — fixed width, left-aligned next to Pre-publish */}
