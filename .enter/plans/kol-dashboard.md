@@ -1,13 +1,8 @@
-# Clickable Platform Icons on Published Kanban Cards
+# Fix: Publication Links Open in Iframe
 
 ## Context
-Published KOLs have publication links stored in `stageLinks` as `pub_N: "platform|url"`. The platform icons on their kanban cards should link to the corresponding publication URL when available.
+Clicking platform icons opens the URL inside the preview iframe, which gets blocked by YouTube's security policy. Need to use `window.open()` via onClick handler to force opening in a new browser tab.
 
-## Changes
-
+## Change
 ### `src/components/kol/PlatformIcon.tsx`
-- Add a new `LinkedPlatformIcons` component that accepts `stageLinks` and renders each platform icon as a clickable `<a>` when a matching pub link exists (with hover effect), or as a plain icon otherwise.
-- Parse `pub_*` entries from `stageLinks` to build a `platform -> url` map.
-
-### `src/components/kol/KolKanbanCard.tsx`
-- When `kol.currentStage === 'published'`, render `LinkedPlatformIcons` instead of `PlatformIcons`, passing `kol.stageLinks`.
+- In `LinkedPlatformIcons`, change `<a>` tags to `<button>` with `onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}` to bypass iframe restrictions.
