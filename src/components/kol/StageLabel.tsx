@@ -37,9 +37,9 @@ export function StageLabel({ stage, className, link }: StageLabelProps) {
 
   if (link) {
     return (
-      <a href={link} target="_blank" rel="noopener noreferrer">
+      <button type="button" onClick={() => (window.top || window).open(link, '_blank', 'noopener,noreferrer')} className="cursor-pointer">
         {badge}
-      </a>
+      </button>
     );
   }
 

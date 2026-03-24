@@ -65,15 +65,14 @@ function PrePublishCard({ kol, agency, onDismiss }: { kol: KOL; agency?: Agency;
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">Materials</span>
           {kol.feishuUrl ? (
-            <a
-              href={kol.feishuUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-primary hover:underline font-medium"
+            <button
+              type="button"
+              onClick={() => (window.top || window).open(kol.feishuUrl, '_blank', 'noopener,noreferrer')}
+              className="flex items-center gap-1 text-primary hover:underline font-medium cursor-pointer"
             >
               Feishu Doc
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </button>
           ) : (
             <span className="text-warning text-[11px] font-medium">Not submitted</span>
           )}

@@ -91,7 +91,7 @@ export function LinkedPlatformIcons({ platforms, stageLinks, className }: Linked
           return (
             <button
               key={p}
-              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+              onClick={() => (window.top || window).open(url, '_blank', 'noopener,noreferrer')}
               className="rounded p-0.5 hover:bg-accent transition-colors cursor-pointer"
               title={`View on ${p}`}
             >

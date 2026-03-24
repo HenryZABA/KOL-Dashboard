@@ -57,16 +57,15 @@ function StageProgressBar({ stage, stageLinks }: { stage: Stage; stageLinks?: Re
 
           if (link) {
             return (
-              <a
+              <button
+                type="button"
                 key={step.label}
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(labelClass, 'underline decoration-dotted underline-offset-2 hover:opacity-70 inline-flex items-center gap-0.5')}
+                onClick={() => (window.top || window).open(link, '_blank', 'noopener,noreferrer')}
+                className={cn(labelClass, 'underline decoration-dotted underline-offset-2 hover:opacity-70 inline-flex items-center gap-0.5 cursor-pointer')}
               >
                 {step.label}
                 <ExternalLink className="h-2 w-2" />
-              </a>
+              </button>
             );
           }
 
