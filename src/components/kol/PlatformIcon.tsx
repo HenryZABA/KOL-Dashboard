@@ -89,16 +89,14 @@ export function LinkedPlatformIcons({ platforms, stageLinks, className }: Linked
         const url = pubMap[p];
         if (url) {
           return (
-            <a
+            <button
               key={p}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded p-0.5 hover:bg-accent transition-colors"
+              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+              className="rounded p-0.5 hover:bg-accent transition-colors cursor-pointer"
               title={`View on ${p}`}
             >
               <PlatformIcon platform={p} />
-            </a>
+            </button>
           );
         }
         return <PlatformIcon key={p} platform={p} className="opacity-30" />;
