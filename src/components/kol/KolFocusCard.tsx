@@ -88,24 +88,25 @@ export function KolFocusCard({ kol, agency, onDismiss }: KolFocusCardProps) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-card min-w-[260px] max-w-[300px] shrink-0 transition-shadow hover:shadow-card-hover',
+        'relative group flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-card min-w-[260px] max-w-[300px] shrink-0 transition-shadow hover:shadow-card-hover',
         overdue && 'border-l-2 border-l-overdue',
       )}
     >
-      {/* Header: name + platforms + dismiss */}
+      {onDismiss && (
+        <button
+          onClick={() => onDismiss(kol.id)}
+          className="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground hover:border-destructive opacity-0 group-hover:opacity-100 transition-all"
+          title="Dismiss"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+
+      {/* Header: name + platforms */}
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-card-foreground leading-tight">{kol.name}</span>
         <div className="flex items-center gap-1.5 shrink-0">
           <PlatformIcons platforms={kol.platforms} />
-          {onDismiss && (
-            <button
-              onClick={() => onDismiss(kol.id)}
-              className="ml-1 rounded-sm p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors"
-              title="Dismiss"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
       </div>
 
