@@ -5,14 +5,19 @@ import { AgencyKolTable } from '@/components/agency/AgencyKolTable';
 import { AddKolForm } from '@/components/agency/AddKolForm';
 import { KolDetailPanel } from '@/components/agency/KolDetailPanel';
 import { CsvImportDialog } from '@/components/agency/CsvImportDialog';
+import { AgencyAiChat } from '@/components/agency/AgencyAiChat';
 import { Button } from '@/components/ui/button';
 import type { KOL, Platform } from '@/lib/mock-data';
-import { Building2, Plus, Upload, Search } from 'lucide-react';
+import { Building2, Plus, Upload, Search, Users, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+
+type Tab = 'kols' | 'ai';
 
 export default function AgencyPortalPage() {
   const { token } = useParams<{ token: string }>();
   const { kols, agencies, loading, addKol, updateKolStage, updateKolField, toggleTodaysFocus } = useKolStore();
+  const [activeTab, setActiveTab] = useState<Tab>('kols');
 
   const agency = useMemo(() => {
     if (!token) return undefined;
@@ -90,33 +95,68 @@ export default function AgencyPortalPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-1.5">
-              <Upload className="h-4 w-4" />
-              Import CSV
-            </Button>
-            <Button size="sm" onClick={() => setShowAddForm(true)} className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              Add KOL
-            </Button>
+            {/* Tabs */}
+            <div className="flex items-center bg-muted rounded-lg p-0.5 mr-3">
+              <button
+                onClick={() => setActiveTab('kols')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                  activeTab === 'kols'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Users className="h-3.5 w-3.5" />
+                KOL Management
+              </button>
+              <button
+                onClick={() => setActiveTab('ai')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                  activeTab === 'ai'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                AI Assistant
+              </button>
+            </div>
+            {activeTab === 'kols' && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-1.5">
+                  <Upload className="h-4 w-4" />
+                  Import CSV
+                </Button>
+                <Button size="sm" onClick={() => setShowAddForm(true)} className="gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  Add KOL
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       {/* Content */}
-      <main className="max-w-6xl mx-auto p-6 space-y-4">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search KOLs..."
-            className="pl-9 h-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="bg-background rounded-lg border shadow-card">
-          <AgencyKolTable kols={filteredAgencyKols} onSelectKol={setSelectedKol} />
-        </div>
-      </main>
+      {activeTab === 'kols' ? (
+        <main className="max-w-6xl mx-auto p-6 space-y-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search KOLs..."
+              className="pl-9 h-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="bg-background rounded-lg border shadow-card">
+            <AgencyKolTable kols={filteredAgencyKols} onSelectKol={setSelectedKol} />
+          </div>
+        </main>
+      ) : (
+        <AgencyAiChat />
+      )}
 
       {/* Add KOL Form */}
       <AddKolForm
