@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 
 export default function AgencyPortalPage() {
   const { token } = useParams<{ token: string }>();
-  const { kols, agencies, loading, addKol, updateKolStage, updateKolField } = useKolStore();
+  const { kols, agencies, loading, addKol, updateKolStage, updateKolField, toggleTodaysFocus } = useKolStore();
 
   const agency = useMemo(() => {
     if (!token) return undefined;
@@ -132,6 +132,7 @@ export default function AgencyPortalPage() {
         onOpenChange={(open) => !open && setSelectedKol(null)}
         onUpdateStage={updateKolStage}
         onUpdateField={updateKolField}
+        onToggleFocus={toggleTodaysFocus}
       />
 
       {/* CSV Import */}
