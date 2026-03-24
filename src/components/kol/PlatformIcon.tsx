@@ -1,6 +1,6 @@
 import { Youtube, Instagram, Facebook } from 'lucide-react';
 import type { Platform } from '@/lib/mock-data';
-import { cn } from '@/lib/utils';
+import { cn, openExternal } from '@/lib/utils';
 
 const TikTokIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
@@ -91,7 +91,7 @@ export function LinkedPlatformIcons({ platforms, stageLinks, className }: Linked
           return (
             <button
               key={p}
-              onClick={() => (window.top || window).open(url, '_blank', 'noopener,noreferrer')}
+              onClick={() => openExternal(url)}
               className="rounded p-0.5 hover:bg-accent transition-colors cursor-pointer"
               title={`View on ${p}`}
             >

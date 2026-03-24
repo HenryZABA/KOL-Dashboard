@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { KOL, Stage } from '@/lib/mock-data';
 import { STAGE_LABELS } from '@/lib/mock-data';
-import { cn } from '@/lib/utils';
+import { cn, openExternal } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
 
 const STAGE_COLORS: Record<Stage, string> = {
@@ -37,7 +37,7 @@ export function StageLabel({ stage, className, link }: StageLabelProps) {
 
   if (link) {
     return (
-      <button type="button" onClick={() => (window.top || window).open(link, '_blank', 'noopener,noreferrer')} className="cursor-pointer">
+      <button type="button" onClick={() => openExternal(link)} className="cursor-pointer">
         {badge}
       </button>
     );

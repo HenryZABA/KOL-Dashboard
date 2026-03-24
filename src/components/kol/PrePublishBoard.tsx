@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KOL, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue, getAgencyById } from '@/lib/mock-data';
-import { cn } from '@/lib/utils';
+import { cn, openExternal } from '@/lib/utils';
 import { Clock, ExternalLink, FileCheck, X } from 'lucide-react';
 
 interface PrePublishBoardProps {
@@ -67,7 +67,7 @@ function PrePublishCard({ kol, agency, onDismiss }: { kol: KOL; agency?: Agency;
           {kol.feishuUrl ? (
             <button
               type="button"
-              onClick={() => (window.top || window).open(kol.feishuUrl, '_blank', 'noopener,noreferrer')}
+              onClick={() => openExternal(kol.feishuUrl!)}
               className="flex items-center gap-1 text-primary hover:underline font-medium cursor-pointer"
             >
               Feishu Doc

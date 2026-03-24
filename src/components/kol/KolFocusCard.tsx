@@ -3,7 +3,7 @@ import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import { ParallelStageLabel } from '@/components/kol/StageLabel';
 import type { KOL, Stage, Agency } from '@/lib/mock-data';
 import { getDaysInStage, isOverdue } from '@/lib/mock-data';
-import { cn } from '@/lib/utils';
+import { cn, openExternal } from '@/lib/utils';
 import { Clock, ExternalLink, X } from 'lucide-react';
 
 const STAGE_PROGRESS: Record<Stage, number> = {
@@ -60,7 +60,7 @@ function StageProgressBar({ stage, stageLinks }: { stage: Stage; stageLinks?: Re
               <button
                 type="button"
                 key={step.label}
-                onClick={() => (window.top || window).open(link, '_blank', 'noopener,noreferrer')}
+                onClick={() => openExternal(link)}
                 className={cn(labelClass, 'underline decoration-dotted underline-offset-2 hover:opacity-70 inline-flex items-center gap-0.5 cursor-pointer')}
               >
                 {step.label}
