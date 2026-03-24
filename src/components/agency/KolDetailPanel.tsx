@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChangeLog } from './ChangeLog';
@@ -47,6 +46,32 @@ const LINK_STAGES: { key: Stage; label: string }[] = [
   { key: 'published', label: 'Published' },
 ];
 
+const REVISION_OPTIONS = [
+  { value: 3, label: '3' },
+  { value: 2, label: '2' },
+  { value: 1, label: '1' },
+  { value: 0, label: 'Final' },
+];
+
+function RevisionPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      {REVISION_OPTIONS.map((opt) => (
+        <Button
+          key={opt.value}
+          type="button"
+          size="sm"
+          variant={value === opt.value ? 'default' : 'outline'}
+          className="h-8 px-3 text-xs"
+          onClick={() => onChange(opt.value)}
+        >
+          {opt.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 export function KolDetailPanel({
   kol,
   open,
@@ -67,11 +92,6 @@ export function KolDetailPanel({
     setSelectedStage(newStage);
     onUpdateStage(kol.id, newStage);
   };
-
-  const canAdvanceToVideo =
-    (kol.currentStage === 'writing_script' || kol.currentStage === 'creating_project') &&
-    kol.scriptComplete &&
-    kol.projectComplete;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -128,57 +148,14 @@ export function KolDetailPanel({
           {(kol.currentStage === 'writing_script' || kol.currentStage === 'creating_project') && (
             <>
               <Separator />
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Parallel Stage Progress
+                  Est. Remaining Revisions (Script)
                 </Label>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Script</span>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <Label htmlFor="script-version" className="text-xs text-muted-foreground">v</Label>
-                        <Input
-                          id="script-version"
-                          type="number"
-                          min={0}
-                          className="w-16 h-7 text-xs"
-                          value={kol.scriptVersion}
-                          onChange={(e) => onUpdateField(kol.id, { scriptVersion: parseInt(e.target.value) || 0 })}
-                        />
-                      </div>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <Checkbox
-                          checked={kol.scriptComplete}
-                          onCheckedChange={(checked) => onUpdateField(kol.id, { scriptComplete: !!checked })}
-                        />
-                        <span className="text-xs">Done</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Project</span>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <Checkbox
-                        checked={kol.projectComplete}
-                        onCheckedChange={(checked) => onUpdateField(kol.id, { projectComplete: !!checked })}
-                      />
-                      <span className="text-xs">Done</span>
-                    </label>
-                  </div>
-
-                  {canAdvanceToVideo && (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => onUpdateStage(kol.id, 'video_production', 'Script and project both completed')}
-                    >
-                      Advance to Video
-                    </Button>
-                  )}
-                </div>
+                <RevisionPicker
+                  value={kol.scriptVersion}
+                  onChange={(v) => onUpdateField(kol.id, { scriptVersion: v })}
+                />
               </div>
             </>
           )}
@@ -188,14 +165,11 @@ export function KolDetailPanel({
               <Separator />
               <div className="space-y-3">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Video Version
+                  Est. Remaining Revisions (Video)
                 </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  className="w-24 h-8"
+                <RevisionPicker
                   value={kol.videoVersion}
-                  onChange={(e) => onUpdateField(kol.id, { videoVersion: parseInt(e.target.value) || 0 })}
+                  onChange={(v) => onUpdateField(kol.id, { videoVersion: v })}
                 />
               </div>
             </>
