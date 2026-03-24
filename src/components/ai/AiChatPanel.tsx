@@ -21,6 +21,8 @@ interface AiChatPanelProps {
   heightClass?: string;
   /** Custom empty state description */
   emptyDescription?: string;
+  /** Callback when a file is saved to KB */
+  onFileSaved?: () => void;
 }
 
 const ALLOWED_EXTENSIONS = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'log'];
@@ -29,6 +31,7 @@ export function AiChatPanel({
   saveToKb = false,
   heightClass = 'h-[calc(100vh-73px)]',
   emptyDescription = 'Ask me to review copy, check publication details, or answer questions about brand guidelines and KOL campaigns.',
+  onFileSaved,
 }: AiChatPanelProps) {
   const { messages, isLoading, error, sendMessage, cancel, clearChat } = useAiChat();
   const [input, setInput] = useState('');
@@ -74,6 +77,10 @@ export function AiChatPanel({
         saveToKb,
       });
       setAttachedFile(null);
+      if (saveToKb && onFileSaved) {
+        // Refresh KB list after a short delay to allow edge function to save
+        setTimeout(onFileSaved, 2000);
+      }
     } else {
       sendMessage(message);
     }

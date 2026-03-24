@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Crosshair, Users, Building2, Settings, LayoutDashboard, BookOpen, MessageSquare } from 'lucide-react';
+import { Crosshair, Users, Building2, Settings, LayoutDashboard, MessageSquare } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -15,8 +15,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', icon: Crosshair, label: "Today's Focus", end: true },
   { to: '/dashboard/kols', icon: Users, label: 'All KOLs', end: false },
   { to: '/dashboard/agencies', icon: Building2, label: 'Agencies', end: false },
-  { to: '/dashboard/knowledge-base', icon: BookOpen, label: 'AI Knowledge Base', end: false },
-  { to: '/dashboard/ai', icon: MessageSquare, label: 'AI Chat', end: false },
+  { to: '/dashboard/ai', icon: MessageSquare, label: 'AI Assistant', end: false },
   { to: '/dashboard/settings', icon: Settings, label: 'Settings', end: false },
 ];
 

@@ -4,7 +4,6 @@ import TodaysFocusPage from './pages/TodaysFocusPage';
 import AllKolsKanbanPage from './pages/AllKolsKanbanPage';
 import AgenciesPage from './pages/AgenciesPage';
 import SettingsPage from './pages/SettingsPage';
-import KnowledgeBasePage from './pages/KnowledgeBasePage';
 import BrandAiPage from './pages/BrandAiPage';
 import AgencyPortalPage from './pages/AgencyPortalPage';
 import NotFound from './pages/NotFound';
@@ -23,7 +22,6 @@ export const routers = [
       { index: true, element: <TodaysFocusPage /> },
       { path: 'kols', element: <AllKolsKanbanPage /> },
       { path: 'agencies', element: <AgenciesPage /> },
-      { path: 'knowledge-base', element: <KnowledgeBasePage /> },
       { path: 'ai', element: <BrandAiPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
