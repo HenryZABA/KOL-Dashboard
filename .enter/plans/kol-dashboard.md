@@ -1,8 +1,14 @@
-# Fix: Publication Links Open in Iframe
+# Fix: Dismiss Button Not Hiding Cards
 
-## Context
-Clicking platform icons opens the URL inside the preview iframe, which gets blocked by YouTube's security policy. Need to use `window.open()` via onClick handler to force opening in a new browser tab.
+## Problem
+1. **Focus cards**: `focusKols` filter includes overdue KOLs regardless of `isTodaysFocus`. Dismissing toggles `isTodaysFocus` off, but the overdue condition still matches, so the card stays.
+2. **Pre-publish cards**: Filtered by `currentStage === 'pre_publish'` only, not by `isTodaysFocus` at all, so dismiss has no effect.
 
-## Change
-### `src/components/kol/PlatformIcon.tsx`
-- In `LinkedPlatformIcons`, change `<a>` tags to `<button>` with `onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}` to bypass iframe restrictions.
+## Solution
+Use a `dismissed` Set in local state to immediately hide dismissed cards from the UI, while still toggling `isTodaysFocus` in the database for persistence.
+
+### `src/pages/TodaysFocusPage.tsx`
+- Add `dismissed` state: `useState<Set<string>>(new Set())`
+- Reset `dismissed` when `kols` changes (since refreshed data reflects DB state)
+- In `handleDismiss`: add kolId to `dismissed` set AND call `toggleTodaysFocus`
+- Filter out dismissed IDs from both `focusKols` and `prePublishKols`
