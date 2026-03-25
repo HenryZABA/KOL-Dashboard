@@ -1,0 +1,2 @@
+DELETE FROM change_log;
+DELETE FROM kols;

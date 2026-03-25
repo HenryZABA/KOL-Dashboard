@@ -1,0 +1,20 @@
+
+-- Knowledge base table for brand-configured AI reference materials
+CREATE TABLE knowledge_base (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  content text NOT NULL DEFAULT '',
+  file_url text,
+  file_type text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
+
+-- Authenticated users (brand) have full access
+CREATE POLICY "Authenticated users can manage knowledge_base" ON knowledge_base
+  FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- Anon (agency portal) can read
+CREATE POLICY "Anon can read knowledge_base" ON knowledge_base
+  FOR SELECT USING (true);

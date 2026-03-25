@@ -1,0 +1,2 @@
+DELETE FROM change_log WHERE kol_id IN (SELECT id FROM kols WHERE agency_id = '17f06ab3-c9bd-415f-b008-127aea6c5784');
+DELETE FROM kols WHERE agency_id = '17f06ab3-c9bd-415f-b008-127aea6c5784';

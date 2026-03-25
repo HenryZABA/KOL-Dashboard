@@ -1,0 +1,155 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 220 14% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 14% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 14% 10%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 14% 10%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 14% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 221 83% 53%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar — dark */
+    --sidebar-background: 220 16% 8%;
+    --sidebar-foreground: 220 14% 80%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 14%;
+    --sidebar-accent-foreground: 220 14% 95%;
+    --sidebar-border: 220 14% 16%;
+    --sidebar-ring: 221 83% 53%;
+
+    /* Stage colors */
+    --stage-idea: 43 96% 56%;
+    --stage-script: 262 83% 58%;
+    --stage-video: 199 89% 48%;
+    --stage-confirm: 25 95% 53%;
+    --stage-published: 142 71% 45%;
+
+    /* Status */
+    --overdue: 0 84% 60%;
+    --overdue-bg: 0 84% 97%;
+    --success: 142 71% 45%;
+    --warning: 43 96% 56%;
+
+    /* Shadows */
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+
+    /* Dashboard accent colors */
+    --accent-mint: 150 80% 70%;
+    --accent-lavender: 262 60% 70%;
+
+    /* Metric colors (stock-style) */
+    --metric-up: 142 71% 45%;
+    --metric-down: 0 84% 60%;
+    --metric-neutral: 220 9% 46%;
+  }
+
+  .dark {
+    --background: 220 16% 8%;
+    --foreground: 220 14% 95%;
+
+    --card: 220 14% 11%;
+    --card-foreground: 220 14% 95%;
+
+    --popover: 220 14% 11%;
+    --popover-foreground: 220 14% 95%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 16%;
+    --secondary-foreground: 220 14% 95%;
+
+    --muted: 220 14% 16%;
+    --muted-foreground: 220 9% 55%;
+
+    --accent: 220 14% 16%;
+    --accent-foreground: 220 14% 95%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 18%;
+    --input: 220 14% 18%;
+    --ring: 221 83% 53%;
+
+    --sidebar-background: 220 16% 5%;
+    --sidebar-foreground: 220 14% 80%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 12%;
+    --sidebar-accent-foreground: 220 14% 95%;
+    --sidebar-border: 220 14% 14%;
+    --sidebar-ring: 221 83% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* Dashboard animations */
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ring-draw {
+  from { stroke-dashoffset: var(--ring-circumference, 283); }
+  to { stroke-dashoffset: var(--ring-offset, 0); }
+}
+
+.animate-bar-grow {
+  transform-origin: left;
+  animation: bar-grow 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+.animate-ring-draw {
+  animation: ring-draw 1.2s ease-out forwards;
+}

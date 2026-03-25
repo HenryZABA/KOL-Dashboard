@@ -1,0 +1,5 @@
+
+ALTER TABLE kols ADD COLUMN published_at TIMESTAMPTZ;
+
+-- Backfill: set published_at for existing published KOLs using stage_updated_at
+UPDATE kols SET published_at = stage_updated_at WHERE current_stage = 'published' AND published_at IS NULL;

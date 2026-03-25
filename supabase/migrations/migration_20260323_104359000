@@ -1,0 +1,89 @@
+
+-- Agencies table
+CREATE TABLE agencies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE agencies ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users full access, anon users read-only (for agency portal)
+CREATE POLICY "Authenticated users can manage agencies"
+  ON agencies FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Anyone can read agencies by token"
+  ON agencies FOR SELECT
+  TO anon
+  USING (true);
+
+-- KOLs table
+CREATE TABLE kols (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  platforms TEXT[] NOT NULL DEFAULT '{}',
+  profile_url TEXT,
+  content_direction TEXT,
+  notes TEXT,
+  current_stage TEXT NOT NULL DEFAULT 'writing_idea',
+  script_version INT NOT NULL DEFAULT 0,
+  script_complete BOOLEAN NOT NULL DEFAULT false,
+  project_complete BOOLEAN NOT NULL DEFAULT false,
+  video_version INT NOT NULL DEFAULT 0,
+  feishu_url TEXT,
+  is_todays_focus BOOLEAN NOT NULL DEFAULT false,
+  agency_id UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+  stage_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE kols ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can manage kols"
+  ON kols FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Anon can read kols"
+  ON kols FOR SELECT
+  TO anon
+  USING (true);
+
+CREATE POLICY "Anon can manage kols via agency portal"
+  ON kols FOR ALL
+  TO anon
+  USING (true)
+  WITH CHECK (true);
+
+-- Change log table
+CREATE TABLE change_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kol_id UUID NOT NULL REFERENCES kols(id) ON DELETE CASCADE,
+  from_stage TEXT,
+  to_stage TEXT NOT NULL,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE change_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can manage change_log"
+  ON change_log FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Anon can read and insert change_log"
+  ON change_log FOR SELECT
+  TO anon
+  USING (true);
+
+CREATE POLICY "Anon can insert change_log"
+  ON change_log FOR INSERT
+  TO anon
+  WITH CHECK (true);
