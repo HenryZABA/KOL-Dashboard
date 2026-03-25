@@ -13,7 +13,16 @@ import {
   Paperclip,
   FileText,
   X,
+  Check,
 } from 'lucide-react';
+
+const TOOL_LABELS: Record<string, string> = {
+  list_kols: '查询KOL列表',
+  get_kol_details: '获取KOL详情',
+  update_kol_stage: '更新KOL阶段',
+  toggle_todays_focus: '标记今日焦点',
+  get_summary: '获取统计摘要',
+};
 
 interface AiChatPanelProps {
   /** When true, uploaded files are auto-saved to knowledge base */
@@ -228,7 +237,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     }
   }, [message.content, message.thinking]);
 
-  const isWaiting = message.isStreaming && !message.thinking && !message.content;
+  const hasToolSteps = (message.toolSteps?.length ?? 0) > 0;
+  const isWaiting = message.isStreaming && !message.thinking && !message.content && !hasToolSteps;
 
   if (message.role === 'user') {
     return (
@@ -247,6 +257,24 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <div className="flex items-center gap-2 text-muted-foreground py-1">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             <span className="text-xs">Thinking...</span>
+          </div>
+        )}
+
+        {hasToolSteps && (
+          <div className="space-y-1 py-1">
+            {message.toolSteps!.map((step, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                {step.status === 'running' ? (
+                  <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                ) : (
+                  <Check className="h-3 w-3 text-green-500 shrink-0" />
+                )}
+                <span>{TOOL_LABELS[step.name] ?? step.name}</span>
+                {step.summary && (
+                  <span className="text-muted-foreground/60">— {step.summary}</span>
+                )}
+              </div>
+            ))}
           </div>
         )}
 

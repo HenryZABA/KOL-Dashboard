@@ -5,11 +5,19 @@ const SUPABASE_URL = 'https://ifrrsotvlvunpxtghbua.supabase.co';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcnJzb3R2bHZ1bnB4dGdoYnVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNTU3ODksImV4cCI6MjA4OTgzMTc4OX0.iZLvBr48krBjOFU-AE3hOSQ5iXOa19dxeCvBl2tX0O8';
 
+export interface ToolStep {
+  name: string;
+  input: Record<string, unknown>;
+  summary?: string;
+  status: 'running' | 'done';
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   thinking?: string;
   isStreaming?: boolean;
+  toolSteps?: ToolStep[];
 }
 
 const FALLBACK_MESSAGES: Record<string, string> = {
@@ -44,6 +52,7 @@ export function useAiChat() {
         content: '',
         thinking: '',
         isStreaming: true,
+        toolSteps: [],
       };
 
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
@@ -114,12 +123,48 @@ export function useAiChat() {
               }
 
               switch (data.type) {
+                case 'tool_start':
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const last = updated[updated.length - 1];
+                    if (last?.role === 'assistant') {
+                      updated[updated.length - 1] = {
+                        ...last,
+                        toolSteps: [
+                          ...(last.toolSteps ?? []),
+                          { name: data.name, input: data.input, status: 'running' as const },
+                        ],
+                      };
+                    }
+                    return updated;
+                  });
+                  break;
+
+                case 'tool_done':
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const last = updated[updated.length - 1];
+                    if (last?.role === 'assistant' && last.toolSteps) {
+                      updated[updated.length - 1] = {
+                        ...last,
+                        toolSteps: last.toolSteps.map((s) =>
+                          s.name === data.name && s.status === 'running'
+                            ? { ...s, summary: data.summary, status: 'done' as const }
+                            : s,
+                        ),
+                      };
+                    }
+                    return updated;
+                  });
+                  break;
+
                 case 'content_block_start':
                   blocks.set(data.index, {
                     type: data.content_block.type,
                     content: '',
                   });
                   break;
+
                 case 'content_block_delta': {
                   const block = blocks.get(data.index);
                   if (block?.type === 'thinking') {
@@ -135,6 +180,7 @@ export function useAiChat() {
                   }
                   break;
                 }
+
                 case 'message_stop':
                   setMessages((prev) =>
                     updateLast(prev, { isStreaming: false }),
