@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { PlatformIcons } from '@/components/kol/PlatformIcon';
+import { LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
@@ -58,7 +58,7 @@ export function KolTickerCard({ summary, sparkline }: KolTickerCardProps) {
           <span className="text-sm font-semibold text-card-foreground truncate">{kol.name}</span>
           <DeltaBadge value={overallTrend} />
         </div>
-        <PlatformIcons platforms={kol.platforms} className="shrink-0" />
+        <LinkedPlatformIcons platforms={kol.platforms} stageLinks={kol.stageLinks} className="shrink-0" />
       </div>
 
       {/* Sparkline */}
