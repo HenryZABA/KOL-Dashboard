@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings, LogOut, Copy, Check, Webhook, Key } from 'lucide-react';
+import { Settings, LogOut, Copy, Check, Webhook, Key, DatabaseZap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 
-const API_URL = 'https://ifrrsotvlvunpxtghbua.supabase.co/functions/v1/get-todays-focus';
+const BASE_URL = 'https://ifrrsotvlvunpxtghbua.supabase.co/functions/v1';
+const FOCUS_API_URL = `${BASE_URL}/get-todays-focus`;
+const MANAGE_API_URL = `${BASE_URL}/manage-kols`;
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcnJzb3R2bHZ1bnB4dGdoYnVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNTU3ODksImV4cCI6MjA4OTgzMTc4OX0.iZLvBr48krBjOFU-AE3hOSQ5iXOa19dxeCvBl2tX0O8';
 
 function useCopy() {
@@ -54,11 +56,11 @@ export default function SettingsPage() {
 
         <div className="border-t" />
 
-        {/* API Section */}
+        {/* Today's Focus API Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Webhook className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-medium text-foreground">Today's Focus API</h2>
+            <h2 className="text-sm font-medium text-foreground">Today's Focus API (Read-only)</h2>
           </div>
           <p className="text-xs text-muted-foreground">
             External agents can call this endpoint to get today's focus KOLs, overdue items, and pre-publish confirmations as JSON.
@@ -68,19 +70,51 @@ export default function SettingsPage() {
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Endpoint URL</Label>
             <div className="flex items-center gap-2">
-              <Input readOnly value={API_URL} className="text-xs font-mono bg-muted" />
-              <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => copy(API_URL, 'url')}>
-                {copied === 'url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied === 'url' ? 'Copied' : 'Copy'}
+              <Input readOnly value={FOCUS_API_URL} className="text-xs font-mono bg-muted" />
+              <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => copy(FOCUS_API_URL, 'focus-url')}>
+                {copied === 'focus-url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied === 'focus-url' ? 'Copied' : 'Copy'}
               </Button>
             </div>
           </div>
 
-          {/* API Key */}
+          {/* Usage example */}
+          <div className="rounded-md bg-muted/60 p-3 text-[11px] text-muted-foreground font-mono space-y-1.5 overflow-x-auto">
+            <p className="font-sans text-xs font-medium text-foreground">Example:</p>
+            <p className="whitespace-nowrap">curl -H &quot;Authorization: Bearer $API_KEY&quot; \</p>
+            <p className="whitespace-nowrap pl-4">{FOCUS_API_URL}</p>
+          </div>
+        </div>
+
+        <div className="border-t" />
+
+        {/* Manage KOLs API Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <DatabaseZap className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-medium text-foreground">KOL Management API (CRUD)</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Full CRUD API for creating, reading, updating, and deleting KOLs. Supports GET / POST / PATCH / DELETE.
+          </p>
+
+          {/* Endpoint URL */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Endpoint URL</Label>
+            <div className="flex items-center gap-2">
+              <Input readOnly value={MANAGE_API_URL} className="text-xs font-mono bg-muted" />
+              <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => copy(MANAGE_API_URL, 'manage-url')}>
+                {copied === 'manage-url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied === 'manage-url' ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+          </div>
+
+          {/* API Key (shared) */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Key className="h-3 w-3" />
-              API Key (anon)
+              API Key (shared)
             </Label>
             <div className="flex items-center gap-2">
               <Input readOnly value={API_KEY} className="text-xs font-mono bg-muted" type="password" />
@@ -91,11 +125,32 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Usage example */}
-          <div className="rounded-md bg-muted/60 p-3 text-[11px] text-muted-foreground font-mono space-y-1.5 overflow-x-auto">
-            <p className="font-sans text-xs font-medium text-foreground">Example:</p>
-            <p className="whitespace-nowrap">curl -H &quot;Authorization: Bearer $API_KEY&quot; \</p>
-            <p className="whitespace-nowrap pl-4">{API_URL}</p>
+          {/* Usage examples */}
+          <div className="rounded-md bg-muted/60 p-3 text-[11px] text-muted-foreground font-mono space-y-3 overflow-x-auto">
+            <div>
+              <p className="font-sans text-xs font-medium text-foreground">GET — List all KOLs:</p>
+              <p className="whitespace-nowrap mt-1">curl -H &quot;Authorization: Bearer $API_KEY&quot; {MANAGE_API_URL}</p>
+            </div>
+            <div>
+              <p className="font-sans text-xs font-medium text-foreground">POST — Create KOL:</p>
+              <p className="whitespace-nowrap mt-1">curl -X POST -H &quot;Authorization: Bearer $API_KEY&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-H &quot;Content-Type: application/json&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-d '{`{"name":"KOL Name","platforms":["youtube"],"agency_id":"..."}`}' \</p>
+              <p className="whitespace-nowrap pl-4">{MANAGE_API_URL}</p>
+            </div>
+            <div>
+              <p className="font-sans text-xs font-medium text-foreground">PATCH — Update KOL:</p>
+              <p className="whitespace-nowrap mt-1">curl -X PATCH -H &quot;Authorization: Bearer $API_KEY&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-H &quot;Content-Type: application/json&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-d '{`{"id":"...","current_stage":"video_production"}`}' \</p>
+              <p className="whitespace-nowrap pl-4">{MANAGE_API_URL}</p>
+            </div>
+            <div>
+              <p className="font-sans text-xs font-medium text-foreground">DELETE — Remove KOL:</p>
+              <p className="whitespace-nowrap mt-1">curl -X DELETE -H &quot;Authorization: Bearer $API_KEY&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-H &quot;Content-Type: application/json&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-d '{`{"id":"..."}`}' {MANAGE_API_URL}</p>
+            </div>
           </div>
         </div>
 
