@@ -57,6 +57,26 @@ export default function SettingsPage() {
 
         <div className="border-t" />
 
+        {/* API Key — standalone section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Key className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-medium text-foreground">API Key</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            All API endpoints below share this key. Pass it in the <code className="bg-muted px-1 rounded text-[11px]">Authorization: Bearer</code> header.
+          </p>
+          <div className="flex items-center gap-2">
+            <Input readOnly value={API_KEY} className="text-xs font-mono bg-muted" type="password" />
+            <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => copy(API_KEY, 'key')}>
+              {copied === 'key' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied === 'key' ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-t" />
+
         {/* Today's Focus API Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -107,21 +127,6 @@ export default function SettingsPage() {
               <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => copy(MANAGE_API_URL, 'manage-url')}>
                 {copied === 'manage-url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied === 'manage-url' ? 'Copied' : 'Copy'}
-              </Button>
-            </div>
-          </div>
-
-          {/* API Key (shared) */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Key className="h-3 w-3" />
-              API Key (shared)
-            </Label>
-            <div className="flex items-center gap-2">
-              <Input readOnly value={API_KEY} className="text-xs font-mono bg-muted" type="password" />
-              <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => copy(API_KEY, 'key')}>
-                {copied === 'key' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied === 'key' ? 'Copied' : 'Copy'}
               </Button>
             </div>
           </div>
