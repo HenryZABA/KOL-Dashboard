@@ -17,12 +17,26 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ];
 
 export default function PerformancePage() {
-  const { kols } = useKolStore();
-  const publishedKols = useMemo(() => kols.filter((k) => k.currentStage === 'published'), [kols]);
-  const { kolSummaries, aggregateTotals, trendData, sparklineData, loading } = useVideoMetrics(publishedKols);
+  const { kols, agencies } = useKolStore();
 
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('views');
   const [sortDesc, setSortDesc] = useState(true);
+
+  const activeAgencies = useMemo(() => {
+    const agencyIds = new Set(kols.filter((k) => k.currentStage === 'published').map((k) => k.agencyId));
+    return agencies.filter((a) => agencyIds.has(a.id));
+  }, [kols, agencies]);
+
+  const publishedKols = useMemo(() => {
+    return kols.filter((k) => {
+      if (k.currentStage !== 'published') return false;
+      if (selectedAgencyId && k.agencyId !== selectedAgencyId) return false;
+      return true;
+    });
+  }, [kols, selectedAgencyId]);
+
+  const { kolSummaries, aggregateTotals, trendData, sparklineData, loading } = useVideoMetrics(publishedKols);
 
   const sortedSummaries = useMemo(() => {
     return [...kolSummaries].sort((a, b) => {
@@ -59,6 +73,35 @@ export default function PerformancePage() {
         <BarChart3 className="h-5 w-5 text-foreground" />
         <h1 className="text-lg font-semibold text-foreground">Performance</h1>
         <span className="text-sm text-muted-foreground">({publishedKols.length} published)</span>
+      </div>
+
+      {/* Agency filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setSelectedAgencyId(null)}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+            !selectedAgencyId
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-card text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground',
+          )}
+        >
+          All
+        </button>
+        {activeAgencies.map((agency) => (
+          <button
+            key={agency.id}
+            onClick={() => setSelectedAgencyId(selectedAgencyId === agency.id ? null : agency.id)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+              selectedAgencyId === agency.id
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-card text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            {agency.name}
+          </button>
+        ))}
       </div>
 
       {/* Market Overview */}
