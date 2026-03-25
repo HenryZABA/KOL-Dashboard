@@ -32,6 +32,7 @@ export interface KOL {
   isTodaysFocus: boolean;
   agencyId: string;
   stageUpdatedAt: string;
+  publishedAt?: string;
   createdAt: string;
   stageLinks?: Record<string, string>;
   changeLog: ChangeLogEntry[];

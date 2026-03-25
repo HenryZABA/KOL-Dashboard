@@ -36,6 +36,7 @@ function dbToKol(row: Record<string, unknown>, changeLogs: Record<string, unknow
     agencyId: row.agency_id as string,
     stageLinks: (row.stage_links as Record<string, string>) || {},
     stageUpdatedAt: row.stage_updated_at as string,
+    publishedAt: (row.published_at as string) || undefined,
     createdAt: row.created_at as string,
     changeLog: changeLogs
       .filter((cl) => cl.kol_id === row.id)
@@ -113,6 +114,7 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
       current_stage: newStage,
       stage_updated_at: new Date().toISOString(),
       ...(newStage === 'pre_publish' ? { is_todays_focus: true } : {}),
+      ...(newStage === 'published' ? { published_at: new Date().toISOString() } : {}),
     }).eq('id', kolId);
 
     await supabase.from('change_log').insert({

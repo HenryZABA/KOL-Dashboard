@@ -99,6 +99,7 @@ Deno.serve(async (req: Request) => {
 
       // Auto-flag pre_publish
       if (stage === "pre_publish") insertData.is_todays_focus = true;
+      if (stage === "published") insertData.published_at = new Date().toISOString();
 
       const { data: inserted, error: err } = await supabase
         .from("kols")
@@ -180,6 +181,9 @@ Deno.serve(async (req: Request) => {
         dbUpdates.stage_updated_at = new Date().toISOString();
         if (newStage === "pre_publish") {
           dbUpdates.is_todays_focus = true;
+        }
+        if (newStage === "published") {
+          dbUpdates.published_at = new Date().toISOString();
         }
       }
 

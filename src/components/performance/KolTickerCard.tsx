@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
 import { LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import { cn } from '@/lib/utils';
@@ -93,6 +93,12 @@ export function KolTickerCard({ summary, sparkline }: KolTickerCardProps) {
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* Published date + Metrics row */}
+      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <Calendar className="h-3 w-3" />
+        <span>{kol.publishedAt ? new Date(kol.publishedAt).toLocaleDateString() : 'N/A'}</span>
+      </div>
 
       {/* Metrics row */}
       {hasData ? (
