@@ -1,0 +1,19 @@
+
+CREATE TABLE video_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kol_id UUID NOT NULL REFERENCES kols(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL,
+  views BIGINT NOT NULL DEFAULT 0,
+  likes BIGINT NOT NULL DEFAULT 0,
+  comments BIGINT NOT NULL DEFAULT 0,
+  shares BIGINT NOT NULL DEFAULT 0,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE video_metrics ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anon can read video_metrics" ON video_metrics FOR SELECT USING (true);
+CREATE POLICY "Anon can manage video_metrics" ON video_metrics FOR ALL USING (true) WITH CHECK (true);
+
+CREATE INDEX idx_video_metrics_kol_platform ON video_metrics(kol_id, platform, recorded_at DESC);

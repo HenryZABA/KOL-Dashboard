@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Settings, LogOut, Copy, Check, Webhook, Key, DatabaseZap } from 'lucide-react';
+import { Settings, LogOut, Copy, Check, Webhook, Key, DatabaseZap, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 
 const BASE_URL = 'https://ifrrsotvlvunpxtghbua.supabase.co/functions/v1';
 const FOCUS_API_URL = `${BASE_URL}/get-todays-focus`;
 const MANAGE_API_URL = `${BASE_URL}/manage-kols`;
+const METRICS_API_URL = `${BASE_URL}/manage-video-metrics`;
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcnJzb3R2bHZ1bnB4dGdoYnVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNTU3ODksImV4cCI6MjA4OTgzMTc4OX0.iZLvBr48krBjOFU-AE3hOSQ5iXOa19dxeCvBl2tX0O8';
 
 function useCopy() {
@@ -150,6 +151,46 @@ export default function SettingsPage() {
               <p className="whitespace-nowrap mt-1">curl -X DELETE -H &quot;Authorization: Bearer $API_KEY&quot; \</p>
               <p className="whitespace-nowrap pl-4">-H &quot;Content-Type: application/json&quot; \</p>
               <p className="whitespace-nowrap pl-4">-d '{`{"id":"..."}`}' {MANAGE_API_URL}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t" />
+
+        {/* Video Metrics API Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-medium text-foreground">Video Metrics API</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Submit video performance data (views, likes, comments, shares) for published KOLs. Supports batch insert.
+          </p>
+
+          {/* Endpoint URL */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Endpoint URL</Label>
+            <div className="flex items-center gap-2">
+              <Input readOnly value={METRICS_API_URL} className="text-xs font-mono bg-muted" />
+              <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => copy(METRICS_API_URL, 'metrics-url')}>
+                {copied === 'metrics-url' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied === 'metrics-url' ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Usage examples */}
+          <div className="rounded-md bg-muted/60 p-3 text-[11px] text-muted-foreground font-mono space-y-3 overflow-x-auto">
+            <div>
+              <p className="font-sans text-xs font-medium text-foreground">POST — Submit metrics:</p>
+              <p className="whitespace-nowrap mt-1">curl -X POST -H &quot;Authorization: Bearer $API_KEY&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-H &quot;Content-Type: application/json&quot; \</p>
+              <p className="whitespace-nowrap pl-4">-d '{`{"kol_id":"...","platform":"youtube","views":15000,"likes":800,"comments":120,"shares":45}`}' \</p>
+              <p className="whitespace-nowrap pl-4">{METRICS_API_URL}</p>
+            </div>
+            <div>
+              <p className="font-sans text-xs font-medium text-foreground">GET — Fetch all metrics:</p>
+              <p className="whitespace-nowrap mt-1">curl -H &quot;Authorization: Bearer $API_KEY&quot; {METRICS_API_URL}</p>
             </div>
           </div>
         </div>
