@@ -311,9 +311,11 @@ You have tools to query and update the KOL database. Use them when the user asks
             }
 
             if (toolUseBlocks.length === 0 || isLast) {
-              /* No tool calls - forward buffered events to client */
+              /* No tool calls - forward buffered events to client as "message" event
+                 so fetchEventSource.onmessage can receive them */
               for (const e of events) {
-                ctrl.enqueue(encoder.encode(`event: ${e.event}\ndata: ${e.data}\n\n`));
+                if (!e.data || e.data === "[DONE]") continue;
+                ctrl.enqueue(encoder.encode(`event: message\ndata: ${e.data}\n\n`));
               }
               ctrl.close();
               return;
