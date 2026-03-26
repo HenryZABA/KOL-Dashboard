@@ -54,7 +54,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     return publishedKols.map((kol) => {
       const kolMetrics = metrics.filter((m) => m.kol_id === kol.id);
 
-      // Group by platform for latest/previous maps (kept for compatibility)
+      // Group by platform, get latest + previous
       const latestMap = {} as Record<Platform, VideoMetric | null>;
       const prevMap = {} as Record<Platform, VideoMetric | null>;
       for (const p of kol.platforms) {
@@ -65,7 +65,20 @@ export function useVideoMetrics(publishedKols: KOL[]) {
         prevMap[p] = platformMetrics[1] || null;
       }
 
-      // Aggregate by day across all platforms for this KOL
+      // TOTALS: cumulative — sum of latest record per platform
+      const totals = { views: 0, likes: 0, comments: 0, shares: 0 };
+      for (const p of kol.platforms) {
+        const l = latestMap[p];
+        if (l) {
+          totals.views += l.views;
+          totals.likes += l.likes;
+          totals.comments += l.comments;
+          totals.shares += l.shares;
+        }
+      }
+
+      // DELTAS: based on daily increments (matching sparkline logic)
+      // Aggregate snapshots by day across all platforms
       const dayMap = new Map<string, { views: number; likes: number; comments: number; shares: number }>();
       for (const m of kolMetrics) {
         const day = m.recorded_at.slice(0, 10);
@@ -76,44 +89,43 @@ export function useVideoMetrics(publishedKols: KOL[]) {
         existing.shares += m.shares;
         dayMap.set(day, existing);
       }
+      const days = Array.from(dayMap.entries()).sort(([a], [b]) => a.localeCompare(b));
 
-      const days = Array.from(dayMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b));
-
-      // Calculate daily increments for the last two days
-      let totals = { views: 0, likes: 0, comments: 0, shares: 0 };
-      let prevTotals = { views: 0, likes: 0, comments: 0, shares: 0 };
-
-      if (days.length >= 2) {
-        const lastSnap = days[days.length - 1][1];
-        const prevSnap = days[days.length - 2][1];
-        // Today's increment = today's snapshot - yesterday's snapshot
-        totals = {
-          views: Math.max(0, lastSnap.views - prevSnap.views),
-          likes: Math.max(0, lastSnap.likes - prevSnap.likes),
-          comments: Math.max(0, lastSnap.comments - prevSnap.comments),
-          shares: Math.max(0, lastSnap.shares - prevSnap.shares),
+      let deltas = { views: 0, likes: 0, comments: 0, shares: 0 };
+      if (days.length >= 3) {
+        // todayInc = day[-1] - day[-2], yesterdayInc = day[-2] - day[-3]
+        const todaySnap = days[days.length - 1][1];
+        const yesterdaySnap = days[days.length - 2][1];
+        const dayBeforeSnap = days[days.length - 3][1];
+        const todayInc = {
+          views: todaySnap.views - yesterdaySnap.views,
+          likes: todaySnap.likes - yesterdaySnap.likes,
+          comments: todaySnap.comments - yesterdaySnap.comments,
+          shares: todaySnap.shares - yesterdaySnap.shares,
         };
-        // Yesterday's increment (for delta calculation)
-        if (days.length >= 3) {
-          const prevPrevSnap = days[days.length - 3][1];
-          prevTotals = {
-            views: Math.max(0, prevSnap.views - prevPrevSnap.views),
-            likes: Math.max(0, prevSnap.likes - prevPrevSnap.likes),
-            comments: Math.max(0, prevSnap.comments - prevPrevSnap.comments),
-            shares: Math.max(0, prevSnap.shares - prevPrevSnap.shares),
-          };
-        }
-      } else if (days.length === 1) {
-        totals = { ...days[0][1] };
+        const yesterdayInc = {
+          views: yesterdaySnap.views - dayBeforeSnap.views,
+          likes: yesterdaySnap.likes - dayBeforeSnap.likes,
+          comments: yesterdaySnap.comments - dayBeforeSnap.comments,
+          shares: yesterdaySnap.shares - dayBeforeSnap.shares,
+        };
+        deltas = {
+          views: yesterdayInc.views !== 0 ? ((todayInc.views - yesterdayInc.views) / Math.abs(yesterdayInc.views)) * 100 : 0,
+          likes: yesterdayInc.likes !== 0 ? ((todayInc.likes - yesterdayInc.likes) / Math.abs(yesterdayInc.likes)) * 100 : 0,
+          comments: yesterdayInc.comments !== 0 ? ((todayInc.comments - yesterdayInc.comments) / Math.abs(yesterdayInc.comments)) * 100 : 0,
+          shares: yesterdayInc.shares !== 0 ? ((todayInc.shares - yesterdayInc.shares) / Math.abs(yesterdayInc.shares)) * 100 : 0,
+        };
+      } else if (days.length === 2) {
+        // Only 2 days: show increment as delta (no previous increment to compare)
+        const todaySnap = days[1][1];
+        const yesterdaySnap = days[0][1];
+        deltas = {
+          views: yesterdaySnap.views !== 0 ? ((todaySnap.views - yesterdaySnap.views) / yesterdaySnap.views) * 100 : 0,
+          likes: yesterdaySnap.likes !== 0 ? ((todaySnap.likes - yesterdaySnap.likes) / yesterdaySnap.likes) * 100 : 0,
+          comments: yesterdaySnap.comments !== 0 ? ((todaySnap.comments - yesterdaySnap.comments) / yesterdaySnap.comments) * 100 : 0,
+          shares: yesterdaySnap.shares !== 0 ? ((todaySnap.shares - yesterdaySnap.shares) / yesterdaySnap.shares) * 100 : 0,
+        };
       }
-
-      const deltas = {
-        views: prevTotals.views > 0 ? ((totals.views - prevTotals.views) / prevTotals.views) * 100 : 0,
-        likes: prevTotals.likes > 0 ? ((totals.likes - prevTotals.likes) / prevTotals.likes) * 100 : 0,
-        comments: prevTotals.comments > 0 ? ((totals.comments - prevTotals.comments) / prevTotals.comments) * 100 : 0,
-        shares: prevTotals.shares > 0 ? ((totals.shares - prevTotals.shares) / prevTotals.shares) * 100 : 0,
-      };
 
       return { kol, latest: latestMap, previous: prevMap, totals, deltas };
     });
