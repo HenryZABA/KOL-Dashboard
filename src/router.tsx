@@ -4,7 +4,6 @@ import TodaysFocusPage from './pages/TodaysFocusPage';
 import AllKolsKanbanPage from './pages/AllKolsKanbanPage';
 import AgenciesPage from './pages/AgenciesPage';
 import SettingsPage from './pages/SettingsPage';
-import BrandAiPage from './pages/BrandAiPage';
 import InboxPage from './pages/InboxPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
 import AgencyPortalPage from './pages/AgencyPortalPage';
@@ -32,7 +31,7 @@ export const routers = [
       { path: 'agencies', element: <AgenciesPage /> },
       { path: 'performance', element: <PerformancePage /> },
       { path: 'inbox', element: <InboxPage /> },
-      { path: 'ai', element: <BrandAiPage /> },
+      { path: 'ai', element: null },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },
