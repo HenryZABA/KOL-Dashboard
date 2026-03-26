@@ -15,7 +15,6 @@ export interface ToolStep {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  thinking?: string;
   isStreaming?: boolean;
   toolSteps?: ToolStep[];
 }
@@ -23,8 +22,10 @@ export interface ChatMessage {
 const FALLBACK_MESSAGES: Record<string, string> = {
   authentication_error: 'Authentication failed. Please refresh the page.',
   rate_limit_error: 'Too many requests. Please try again later.',
-  insufficient_credits: "AI credits have been exhausted. Please contact the administrator.",
-  permission_error: 'AI capability is disabled. Please contact the administrator.',
+  insufficient_credits:
+    "AI credits have been exhausted. Please contact the administrator.",
+  permission_error:
+    'AI capability is disabled. Please contact the administrator.',
   api_error: 'Service temporarily unavailable.',
 };
 
@@ -40,17 +41,23 @@ export function useAiChat() {
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
-    async (content: string, options?: { fileContent?: string; fileName?: string; saveToKb?: boolean }) => {
+    async (
+      content: string,
+      options?: {
+        fileContent?: string;
+        fileName?: string;
+        saveToKb?: boolean;
+      },
+    ) => {
       abortRef.current = new AbortController();
 
       const displayContent = options?.fileName
-        ? `${content}\n\n\ud83d\udcce ${options.fileName}`
+        ? `${content}\n\n[${options.fileName}]`
         : content;
       const userMessage: ChatMessage = { role: 'user', content: displayContent };
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: '',
-        thinking: '',
         isStreaming: true,
         toolSteps: [],
       };
@@ -59,12 +66,11 @@ export function useAiChat() {
       setIsLoading(true);
       setError(null);
 
-      const blocks = new Map<number, { type: string; content: string }>();
-
-      // Build the actual message content for AI (includes full file content)
       const aiContent = options?.fileContent
         ? `${content}\n\n--- Attached file: ${options.fileName} ---\n${options.fileContent}`
         : content;
+
+      let accumulatedText = '';
 
       try {
         await fetchEventSource(
@@ -84,26 +90,23 @@ export function useAiChat() {
               ],
               model: 'anthropic/claude-sonnet-4.5',
               ...(options?.saveToKb && options?.fileContent
-                ? { saveToKb: true, fileName: options.fileName, fileContent: options.fileContent }
+                ? {
+                    saveToKb: true,
+                    fileName: options.fileName,
+                    fileContent: options.fileContent,
+                  }
                 : {}),
             }),
             signal: abortRef.current.signal,
 
             async onopen(response) {
-              const ct = response.headers.get('content-type');
               if (!response.ok) {
-                if (ct?.includes('text/event-stream')) {
-                  const text = await response.text();
-                  const m = text.match(/data: (.+)/);
-                  if (m) {
-                    try {
-                      const d = JSON.parse(m[1]);
-                      if (d.error?.message) throw new Error(d.error.message);
-                    } catch (pe) {
-                      if (pe instanceof Error && pe.message !== 'Unexpected token')
-                        throw pe;
-                    }
-                  }
+                const ct = response.headers.get('content-type');
+                if (ct?.includes('application/json')) {
+                  const body = await response.json();
+                  throw new Error(
+                    body.error?.message || body.error || `Request failed: ${response.status}`,
+                  );
                 }
                 throw new Error(`Request failed: ${response.status}`);
               }
@@ -111,20 +114,25 @@ export function useAiChat() {
 
             onmessage(event) {
               if (!event.data) return;
-              const data = JSON.parse(event.data);
-
-              if (data.type === 'error') {
-                const msg = getUserErrorMessage(
-                  data.error?.type || 'api_error',
-                  data.error?.message || 'Service error',
-                );
-                setError(msg);
-                setMessages((prev) => prev.slice(0, -1));
-                setIsLoading(false);
+              let data: Record<string, unknown>;
+              try {
+                data = JSON.parse(event.data);
+              } catch {
                 return;
               }
 
               switch (data.type) {
+                case 'error': {
+                  const msg = getUserErrorMessage(
+                    ((data.error as Record<string, unknown>)?.type as string) || 'api_error',
+                    ((data.error as Record<string, unknown>)?.message as string) || 'Service error',
+                  );
+                  setError(msg);
+                  setMessages((prev) => prev.slice(0, -1));
+                  setIsLoading(false);
+                  break;
+                }
+
                 case 'tool_start':
                   setMessages((prev) => {
                     const updated = [...prev];
@@ -134,7 +142,11 @@ export function useAiChat() {
                         ...last,
                         toolSteps: [
                           ...(last.toolSteps ?? []),
-                          { name: data.name, input: data.input, status: 'running' as const },
+                          {
+                            name: data.name as string,
+                            input: (data.input as Record<string, unknown>) ?? {},
+                            status: 'running' as const,
+                          },
                         ],
                       };
                     }
@@ -151,7 +163,7 @@ export function useAiChat() {
                         ...last,
                         toolSteps: last.toolSteps.map((s) =>
                           s.name === data.name && s.status === 'running'
-                            ? { ...s, summary: data.summary, status: 'done' as const }
+                            ? { ...s, summary: data.summary as string, status: 'done' as const }
                             : s,
                         ),
                       };
@@ -160,36 +172,37 @@ export function useAiChat() {
                   });
                   break;
 
-                case 'content_block_start':
-                  blocks.set(data.index, {
-                    type: data.content_block.type,
-                    content: '',
+                case 'text_delta':
+                  accumulatedText += (data.text as string) || '';
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const last = updated[updated.length - 1];
+                    if (last?.role === 'assistant') {
+                      updated[updated.length - 1] = {
+                        ...last,
+                        content: accumulatedText,
+                      };
+                    }
+                    return updated;
                   });
                   break;
 
-                case 'content_block_delta': {
-                  const block = blocks.get(data.index);
-                  if (block?.type === 'thinking') {
-                    block.content += data.delta.thinking || '';
-                    setMessages((prev) =>
-                      updateLast(prev, { thinking: block.content }),
-                    );
-                  } else if (block?.type === 'text') {
-                    block.content += data.delta.text || '';
-                    setMessages((prev) =>
-                      updateLast(prev, { content: block.content }),
-                    );
-                  }
-                  break;
-                }
-
-                case 'message_stop':
-                  setMessages((prev) =>
-                    updateLast(prev, { isStreaming: false }),
-                  );
+                case 'done':
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const last = updated[updated.length - 1];
+                    if (last?.role === 'assistant') {
+                      updated[updated.length - 1] = {
+                        ...last,
+                        isStreaming: false,
+                      };
+                    }
+                    return updated;
+                  });
                   break;
               }
             },
+
             onerror(err) {
               throw err;
             },
@@ -216,16 +229,4 @@ export function useAiChat() {
   }, []);
 
   return { messages, isLoading, error, sendMessage, cancel, clearChat };
-}
-
-function updateLast(
-  msgs: ChatMessage[],
-  updates: Partial<ChatMessage>,
-): ChatMessage[] {
-  const updated = [...msgs];
-  const last = updated[updated.length - 1];
-  if (last?.role === 'assistant') {
-    updated[updated.length - 1] = { ...last, ...updates };
-  }
-  return updated;
 }

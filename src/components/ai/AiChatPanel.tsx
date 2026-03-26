@@ -6,8 +6,6 @@ import { cn } from '@/lib/utils';
 import {
   Send,
   Loader2,
-  ChevronDown,
-  ChevronRight,
   Trash2,
   AlertCircle,
   Paperclip,
@@ -229,16 +227,8 @@ export function AiChatPanel({
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
-  const [showThinking, setShowThinking] = useState(false);
-
-  useEffect(() => {
-    if (message.content && message.thinking) {
-      setShowThinking(false);
-    }
-  }, [message.content, message.thinking]);
-
   const hasToolSteps = (message.toolSteps?.length ?? 0) > 0;
-  const isWaiting = message.isStreaming && !message.thinking && !message.content && !hasToolSteps;
+  const isWaiting = message.isStreaming && !message.content && !hasToolSteps;
 
   if (message.role === 'user') {
     return (
@@ -275,27 +265,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                 )}
               </div>
             ))}
-          </div>
-        )}
-
-        {message.thinking && (
-          <div>
-            <button
-              onClick={() => setShowThinking(!showThinking)}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showThinking ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
-              <span className="font-medium">Thinking</span>
-            </button>
-            {showThinking && (
-              <div className="mt-1.5 p-2.5 bg-muted/50 rounded-md text-[11px] text-muted-foreground whitespace-pre-wrap border border-border/50 max-h-[200px] overflow-y-auto">
-                {message.thinking}
-              </div>
-            )}
           </div>
         )}
 

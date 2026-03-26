@@ -47,7 +47,10 @@ async function getKolDetails(args: Record<string, unknown>) {
     .maybeSingle();
   if (error) return { error: error.message };
   if (!data) return { error: "KOL not found" };
-  return { ...data, stage_label: STAGE_LABELS[data.current_stage] ?? data.current_stage };
+  return {
+    ...data,
+    stage_label: STAGE_LABELS[data.current_stage] ?? data.current_stage,
+  };
 }
 
 async function updateKolStage(args: Record<string, unknown>) {
@@ -90,7 +93,7 @@ async function toggleTodaysFocus(args: Record<string, unknown>) {
   return data;
 }
 
-async function getSummary(_args: Record<string, unknown>) {
+async function getSummary() {
   const sb = supabaseAdmin();
   const { data: kols } = await sb
     .from("kols")
@@ -115,6 +118,62 @@ const TOOLS: Record<
   toggle_todays_focus: toggleTodaysFocus,
   get_summary: getSummary,
 };
+
+const TOOL_DEFS = [
+  {
+    name: "list_kols",
+    description:
+      "List KOLs. Optional filters: agency_id (uuid), stage (writing_idea|writing_script|creating_project|video_production|pre_publish|published).",
+    input_schema: {
+      type: "object",
+      properties: {
+        agency_id: { type: "string" },
+        stage: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "get_kol_details",
+    description: "Get full details of a KOL by ID.",
+    input_schema: {
+      type: "object",
+      properties: { kol_id: { type: "string" } },
+      required: ["kol_id"],
+    },
+  },
+  {
+    name: "update_kol_stage",
+    description:
+      "Move a KOL to a new pipeline stage. Provide kol_id, stage, and optionally _prev_stage for logging.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kol_id: { type: "string" },
+        stage: { type: "string" },
+        _prev_stage: { type: "string" },
+      },
+      required: ["kol_id", "stage"],
+    },
+  },
+  {
+    name: "toggle_todays_focus",
+    description: "Set or unset a KOL as today's focus.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kol_id: { type: "string" },
+        focused: { type: "boolean" },
+      },
+      required: ["kol_id"],
+    },
+  },
+  {
+    name: "get_summary",
+    description:
+      "Get a summary of all KOLs: totals, counts per stage, today's focus count.",
+    input_schema: { type: "object", properties: {} },
+  },
+];
 
 /* ── main handler ────────────────────────────────────── */
 Deno.serve(async (req: Request) => {
@@ -162,63 +221,7 @@ Deno.serve(async (req: Request) => {
 ## Available tools
 You have tools to query and update the KOL database. Use them when the user asks about KOL status, needs to change stages, or wants summaries. Always respond in the same language the user writes in.`;
 
-    const toolDefs = [
-      {
-        name: "list_kols",
-        description:
-          "List KOLs. Optional filters: agency_id (uuid), stage (writing_idea|writing_script|creating_project|video_production|pre_publish|published).",
-        input_schema: {
-          type: "object",
-          properties: {
-            agency_id: { type: "string" },
-            stage: { type: "string" },
-          },
-        },
-      },
-      {
-        name: "get_kol_details",
-        description: "Get full details of a KOL by ID.",
-        input_schema: {
-          type: "object",
-          properties: { kol_id: { type: "string" } },
-          required: ["kol_id"],
-        },
-      },
-      {
-        name: "update_kol_stage",
-        description:
-          "Move a KOL to a new pipeline stage. Provide kol_id, stage, and optionally _prev_stage for logging.",
-        input_schema: {
-          type: "object",
-          properties: {
-            kol_id: { type: "string" },
-            stage: { type: "string" },
-            _prev_stage: { type: "string" },
-          },
-          required: ["kol_id", "stage"],
-        },
-      },
-      {
-        name: "toggle_todays_focus",
-        description: "Set or unset a KOL as today's focus.",
-        input_schema: {
-          type: "object",
-          properties: {
-            kol_id: { type: "string" },
-            focused: { type: "boolean" },
-          },
-          required: ["kol_id"],
-        },
-      },
-      {
-        name: "get_summary",
-        description:
-          "Get a summary of all KOLs: totals, counts per stage, today's focus count.",
-        input_schema: { type: "object", properties: {} },
-      },
-    ];
-
-    /* ---- conversation loop with live streaming ---- */
+    /* ---- conversation loop (stream: false for reliability) ---- */
     const apiToken = Deno.env.get("AI_API_TOKEN_462b20ce438b")!;
     const apiBase = "https://api.enter.pro/code/api/v1/ai";
     const loopMessages = [...userMessages];
@@ -226,13 +229,18 @@ You have tools to query and update the KOL database. Use them when the user asks
 
     const stream = new ReadableStream({
       async start(ctrl) {
-        const send = (event: string, data: unknown) => {
-          ctrl.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        const send = (data: Record<string, unknown>) => {
+          ctrl.enqueue(
+            encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+          );
         };
 
         try {
           for (let round = 0; round < 6; round++) {
             const isLast = round === 5;
+
+            console.log(`[round ${round}] Calling AI API...`);
+
             const res = await fetch(`${apiBase}/messages`, {
               method: "POST",
               headers: {
@@ -242,130 +250,118 @@ You have tools to query and update the KOL database. Use them when the user asks
               body: JSON.stringify({
                 model,
                 max_tokens: 4096,
-                stream: true,
+                stream: false,
                 system: systemPrompt,
                 messages: loopMessages,
-                ...(isLast ? {} : { tools: toolDefs }),
+                ...(isLast ? {} : { tools: TOOL_DEFS }),
               }),
             });
 
             if (!res.ok) {
-              const t = await res.text();
-              const m = t.match(/data: (.+)/);
-              if (m) {
-                try {
-                  const d = JSON.parse(m[1]);
-                  send("error", d);
-                } catch {
-                  send("error", { type: "error", error: { type: "api_error", message: `API error: ${res.status}` } });
-                }
-              } else {
-                send("error", { type: "error", error: { type: "api_error", message: `API error: ${res.status}` } });
-              }
+              const errText = await res.text();
+              console.error(`API error ${res.status}:`, errText);
+              let errMsg = `API error: ${res.status}`;
+              try {
+                const parsed = JSON.parse(errText);
+                errMsg = parsed.error?.message || errMsg;
+              } catch { /* use default */ }
+              send({
+                type: "error",
+                error: { type: "api_error", message: errMsg },
+              });
               ctrl.close();
               return;
             }
 
-            /* Read full response to detect tool_use */
-            const reader = res.body!.getReader();
-            const decoder = new TextDecoder();
-            let buf = "";
-            const events: Array<{ event: string; data: string }> = [];
+            const body = await res.json();
+            console.log(`[round ${round}] stop_reason:`, body.stop_reason);
 
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buf += decoder.decode(value, { stream: true });
-              const lines = buf.split("\n");
-              buf = lines.pop()!;
-              let currentEvent = "";
-              for (const line of lines) {
-                if (line.startsWith("event: ")) currentEvent = line.slice(7).trim();
-                else if (line.startsWith("data: "))
-                  events.push({ event: currentEvent, data: line.slice(6) });
-              }
-            }
+            /* Extract text and tool_use blocks from response */
+            const textBlocks: string[] = [];
+            const toolUseBlocks: Array<{
+              id: string;
+              name: string;
+              input: Record<string, unknown>;
+            }> = [];
 
-            /* Extract tool_use blocks */
-            const toolUseBlocks: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
-            let currentBlock: { id: string; name: string; inputJson: string } | null = null;
-
-            for (const ev of events) {
-              if (ev.event === "content_block_start") {
-                const d = JSON.parse(ev.data);
-                if (d.content_block?.type === "tool_use") {
-                  currentBlock = { id: d.content_block.id, name: d.content_block.name, inputJson: "" };
-                }
-              } else if (ev.event === "content_block_delta" && currentBlock) {
-                const d = JSON.parse(ev.data);
-                if (d.delta?.type === "input_json_delta")
-                  currentBlock.inputJson += d.delta.partial_json;
-              } else if (ev.event === "content_block_stop" && currentBlock) {
+            for (const block of body.content || []) {
+              if (block.type === "text") {
+                textBlocks.push(block.text);
+              } else if (block.type === "tool_use") {
                 toolUseBlocks.push({
-                  id: currentBlock.id,
-                  name: currentBlock.name,
-                  input: currentBlock.inputJson ? JSON.parse(currentBlock.inputJson) : {},
+                  id: block.id,
+                  name: block.name,
+                  input: block.input || {},
                 });
-                currentBlock = null;
               }
             }
 
+            /* No tool calls → send text and finish */
             if (toolUseBlocks.length === 0 || isLast) {
-              /* No tool calls - forward buffered events to client as "message" event
-                 so fetchEventSource.onmessage can receive them */
-              for (const e of events) {
-                if (!e.data || e.data === "[DONE]") continue;
-                ctrl.enqueue(encoder.encode(`event: message\ndata: ${e.data}\n\n`));
+              const fullText = textBlocks.join("\n");
+              // Chunk text into pieces for streaming feel
+              const CHUNK_SIZE = 15;
+              for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
+                send({
+                  type: "text_delta",
+                  text: fullText.slice(i, i + CHUNK_SIZE),
+                });
               }
+              send({ type: "done" });
               ctrl.close();
               return;
             }
 
-            /* ---- Execute tools with live progress events ---- */
-            const assistantContent: unknown[] = [];
-            let textBuf = "";
-            for (const ev of events) {
-              if (ev.event === "content_block_start") {
-                const d = JSON.parse(ev.data);
-                if (d.content_block?.type === "text") textBuf = d.content_block.text ?? "";
-              } else if (ev.event === "content_block_delta") {
-                const d = JSON.parse(ev.data);
-                if (d.delta?.type === "text_delta") textBuf += d.delta.text;
-              } else if (ev.event === "content_block_stop") {
-                if (textBuf) assistantContent.push({ type: "text", text: textBuf });
-                textBuf = "";
-              }
-            }
-            for (const tb of toolUseBlocks) {
-              assistantContent.push({ type: "tool_use", id: tb.id, name: tb.name, input: tb.input });
-            }
-            loopMessages.push({ role: "assistant", content: assistantContent });
+            /* ---- Execute tools ---- */
+            // Add assistant response to conversation
+            loopMessages.push({ role: "assistant", content: body.content });
 
             const toolResults: unknown[] = [];
             for (const tb of toolUseBlocks) {
-              // Send tool_start to client
-              send("message", { type: "tool_start", name: tb.name, input: tb.input });
+              send({ type: "tool_start", name: tb.name, input: tb.input });
 
               const fn = TOOLS[tb.name];
               let result: unknown = { error: "unknown tool" };
               if (fn) {
-                try { result = await fn(tb.input); }
-                catch (e) { result = { error: String(e) }; }
+                try {
+                  result = await fn(tb.input);
+                } catch (e) {
+                  result = { error: String(e) };
+                }
               }
 
-              // Send tool_done to client
-              const summary = typeof result === "object" && result !== null && "error" in (result as Record<string, unknown>)
-                ? `Error: ${(result as Record<string, unknown>).error}`
-                : "Done";
-              send("message", { type: "tool_done", name: tb.name, summary });
+              const summary =
+                typeof result === "object" &&
+                result !== null &&
+                "error" in (result as Record<string, unknown>)
+                  ? `Error: ${(result as Record<string, unknown>).error}`
+                  : "Done";
+              send({ type: "tool_done", name: tb.name, summary });
 
-              toolResults.push({ type: "tool_result", tool_use_id: tb.id, content: JSON.stringify(result) });
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: tb.id,
+                content: JSON.stringify(result),
+              });
             }
+
             loopMessages.push({ role: "user", content: toolResults });
           }
+
+          // If we exhaust all rounds
+          send({ type: "done" });
           ctrl.close();
         } catch (e) {
-          send("error", { type: "error", error: { type: "api_error", message: String(e) } });
+          console.error("Stream error:", e);
+          const send2 = (data: Record<string, unknown>) => {
+            ctrl.enqueue(
+              encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+            );
+          };
+          send2({
+            type: "error",
+            error: { type: "api_error", message: String(e) },
+          });
           ctrl.close();
         }
       },
