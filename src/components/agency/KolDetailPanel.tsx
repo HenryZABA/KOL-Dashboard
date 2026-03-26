@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useKolChangelog } from '@/hooks/useKolChangelog';
 import {
   Sheet,
   SheetContent,
@@ -195,6 +196,7 @@ export function KolDetailPanel({
   onToggleFocus,
 }: KolDetailPanelProps) {
   const [selectedStage, setSelectedStage] = useState<Stage | ''>('');
+  const { logs: changeLog } = useKolChangelog(open && kol ? kol.id : null);
 
   if (!kol) return null;
 
@@ -388,7 +390,7 @@ export function KolDetailPanel({
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Change History
             </Label>
-            <ChangeLog changeLog={kol.changeLog} />
+            <ChangeLog changeLog={changeLog} />
           </div>
         </div>
       </SheetContent>

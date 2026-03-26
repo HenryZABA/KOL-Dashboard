@@ -35,7 +35,7 @@ export interface KOL {
   publishedAt?: string;
   createdAt: string;
   stageLinks?: Record<string, string>;
-  changeLog: ChangeLogEntry[];
+  changeLog?: ChangeLogEntry[];
 }
 
 export interface Agency {
