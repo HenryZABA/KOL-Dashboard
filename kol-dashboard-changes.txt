@@ -1,0 +1,1060 @@
+diff --git a/src/components/agency/ChangeLog.tsx b/src/components/agency/ChangeLog.tsx
+index 9961921..79a134c 100644
+--- a/src/components/agency/ChangeLog.tsx
++++ b/src/components/agency/ChangeLog.tsx
+@@ -3,10 +3,13 @@ import { STAGE_LABELS } from '@/lib/mock-data';
+ import { cn } from '@/lib/utils';
+ 
+ interface ChangeLogProps {
+-  changeLog: KOL['changeLog'];
++  changeLog?: KOL['changeLog'];
+ }
+ 
+ export function ChangeLog({ changeLog }: ChangeLogProps) {
++  if (!changeLog || changeLog.length === 0) {
++    return <p className="text-xs text-muted-foreground">No history yet.</p>;
++  }
+   const sorted = [...changeLog].sort(
+     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+   );
+diff --git a/src/components/agency/KolDetailPanel.tsx b/src/components/agency/KolDetailPanel.tsx
+index e27cc03..dce040d 100644
+--- a/src/components/agency/KolDetailPanel.tsx
++++ b/src/components/agency/KolDetailPanel.tsx
+@@ -1,4 +1,5 @@
+ import { useState } from 'react';
++import { useKolChangelog } from '@/hooks/useKolChangelog';
+ import {
+   Sheet,
+   SheetContent,
+@@ -195,6 +196,7 @@ export function KolDetailPanel({
+   onToggleFocus,
+ }: KolDetailPanelProps) {
+   const [selectedStage, setSelectedStage] = useState<Stage | ''>('');
++  const { logs: changeLog } = useKolChangelog(open && kol ? kol.id : null);
+ 
+   if (!kol) return null;
+ 
+@@ -388,7 +390,7 @@ export function KolDetailPanel({
+             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+               Change History
+             </Label>
+-            <ChangeLog changeLog={kol.changeLog} />
++            <ChangeLog changeLog={changeLog} />
+           </div>
+         </div>
+       </SheetContent>
+diff --git a/src/components/ai/AiChatPanel.tsx b/src/components/ai/AiChatPanel.tsx
+index 7374ace..ac51aaa 100644
+--- a/src/components/ai/AiChatPanel.tsx
++++ b/src/components/ai/AiChatPanel.tsx
+@@ -13,8 +13,17 @@ import {
+   Paperclip,
+   FileText,
+   X,
++  Check,
+ } from 'lucide-react';
+ 
++const TOOL_LABELS: Record<string, string> = {
++  list_kols: '查询KOL列表',
++  get_kol_details: '获取KOL详情',
++  update_kol_stage: '更新KOL阶段',
++  toggle_todays_focus: '标记今日焦点',
++  get_summary: '获取统计摘要',
++};
++
+ interface AiChatPanelProps {
+   /** When true, uploaded files are auto-saved to knowledge base */
+   saveToKb?: boolean;
+@@ -228,7 +237,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
+     }
+   }, [message.content, message.thinking]);
+ 
+-  const isWaiting = message.isStreaming && !message.thinking && !message.content;
++  const hasToolSteps = (message.toolSteps?.length ?? 0) > 0;
++  const isWaiting = message.isStreaming && !message.thinking && !message.content && !hasToolSteps;
+ 
+   if (message.role === 'user') {
+     return (
+@@ -250,6 +260,24 @@ function MessageBubble({ message }: { message: ChatMessage }) {
+           </div>
+         )}
+ 
++        {hasToolSteps && (
++          <div className="space-y-1 py-1">
++            {message.toolSteps!.map((step, i) => (
++              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
++                {step.status === 'running' ? (
++                  <Loader2 className="h-3 w-3 animate-spin shrink-0" />
++                ) : (
++                  <Check className="h-3 w-3 text-green-500 shrink-0" />
++                )}
++                <span>{TOOL_LABELS[step.name] ?? step.name}</span>
++                {step.summary && (
++                  <span className="text-muted-foreground/60">— {step.summary}</span>
++                )}
++              </div>
++            ))}
++          </div>
++        )}
++
+         {message.thinking && (
+           <div>
+             <button
+diff --git a/src/hooks/useAiChat.ts b/src/hooks/useAiChat.ts
+index fe94404..368ead6 100644
+--- a/src/hooks/useAiChat.ts
++++ b/src/hooks/useAiChat.ts
+@@ -5,11 +5,19 @@ const SUPABASE_URL = 'https://ifrrsotvlvunpxtghbua.supabase.co';
+ const SUPABASE_ANON_KEY =
+   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmcnJzb3R2bHZ1bnB4dGdoYnVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNTU3ODksImV4cCI6MjA4OTgzMTc4OX0.iZLvBr48krBjOFU-AE3hOSQ5iXOa19dxeCvBl2tX0O8';
+ 
++export interface ToolStep {
++  name: string;
++  input: Record<string, unknown>;
++  summary?: string;
++  status: 'running' | 'done';
++}
++
+ export interface ChatMessage {
+   role: 'user' | 'assistant';
+   content: string;
+   thinking?: string;
+   isStreaming?: boolean;
++  toolSteps?: ToolStep[];
+ }
+ 
+ const FALLBACK_MESSAGES: Record<string, string> = {
+@@ -44,6 +52,7 @@ export function useAiChat() {
+         content: '',
+         thinking: '',
+         isStreaming: true,
++        toolSteps: [],
+       };
+ 
+       setMessages((prev) => [...prev, userMessage, assistantMessage]);
+@@ -114,12 +123,48 @@ export function useAiChat() {
+               }
+ 
+               switch (data.type) {
++                case 'tool_start':
++                  setMessages((prev) => {
++                    const updated = [...prev];
++                    const last = updated[updated.length - 1];
++                    if (last?.role === 'assistant') {
++                      updated[updated.length - 1] = {
++                        ...last,
++                        toolSteps: [
++                          ...(last.toolSteps ?? []),
++                          { name: data.name, input: data.input, status: 'running' as const },
++                        ],
++                      };
++                    }
++                    return updated;
++                  });
++                  break;
++
++                case 'tool_done':
++                  setMessages((prev) => {
++                    const updated = [...prev];
++                    const last = updated[updated.length - 1];
++                    if (last?.role === 'assistant' && last.toolSteps) {
++                      updated[updated.length - 1] = {
++                        ...last,
++                        toolSteps: last.toolSteps.map((s) =>
++                          s.name === data.name && s.status === 'running'
++                            ? { ...s, summary: data.summary, status: 'done' as const }
++                            : s,
++                        ),
++                      };
++                    }
++                    return updated;
++                  });
++                  break;
++
+                 case 'content_block_start':
+                   blocks.set(data.index, {
+                     type: data.content_block.type,
+                     content: '',
+                   });
+                   break;
++
+                 case 'content_block_delta': {
+                   const block = blocks.get(data.index);
+                   if (block?.type === 'thinking') {
+@@ -135,6 +180,7 @@ export function useAiChat() {
+                   }
+                   break;
+                 }
++
+                 case 'message_stop':
+                   setMessages((prev) =>
+                     updateLast(prev, { isStreaming: false }),
+diff --git a/src/hooks/useKolChangelog.ts b/src/hooks/useKolChangelog.ts
+new file mode 100644
+index 0000000..888ca25
+--- /dev/null
++++ b/src/hooks/useKolChangelog.ts
+@@ -0,0 +1,38 @@
++import { useState, useEffect } from 'react';
++import { supabase } from '@/integrations/supabase/client';
++import type { ChangeLogEntry, Stage } from '@/lib/mock-data';
++
++function dbToChangeLog(row: Record<string, unknown>): ChangeLogEntry {
++  return {
++    id: row.id as string,
++    fromStage: (row.from_stage as Stage) || null,
++    toStage: row.to_stage as Stage,
++    timestamp: row.created_at as string,
++    note: (row.note as string) || undefined,
++  };
++}
++
++export function useKolChangelog(kolId: string | null) {
++  const [logs, setLogs] = useState<ChangeLogEntry[]>([]);
++  const [loading, setLoading] = useState(false);
++
++  useEffect(() => {
++    if (!kolId) {
++      setLogs([]);
++      return;
++    }
++    setLoading(true);
++    supabase
++      .from('change_log')
++      .select('*')
++      .eq('kol_id', kolId)
++      .order('created_at', { ascending: false })
++      .limit(20)
++      .then(({ data }) => {
++        setLogs((data as Record<string, unknown>[] || []).map(dbToChangeLog));
++        setLoading(false);
++      });
++  }, [kolId]);
++
++  return { logs, loading };
++}
+diff --git a/src/hooks/useVideoMetrics.ts b/src/hooks/useVideoMetrics.ts
+index ba131c0..c6d4210 100644
+--- a/src/hooks/useVideoMetrics.ts
++++ b/src/hooks/useVideoMetrics.ts
+@@ -25,10 +25,19 @@ export function useVideoMetrics(publishedKols: KOL[]) {
+   const [metrics, setMetrics] = useState<VideoMetric[]>([]);
+   const [loading, setLoading] = useState(true);
+ 
+-  const fetchMetrics = useCallback(async () => {
++  // Stable string key to avoid re-fetching on every render due to array reference changes
++  const kolIdsKey = useMemo(() => publishedKols.map((k) => k.id).join(','), [publishedKols]);
++
++  const fetchMetrics = useCallback(async (ids: string[]) => {
++    if (ids.length === 0) {
++      setMetrics([]);
++      setLoading(false);
++      return;
++    }
+     const { data, error } = await supabase
+       .from('video_metrics')
+       .select('*')
++      .in('kol_id', ids)
+       .order('recorded_at', { ascending: true });
+ 
+     if (!error && data) {
+@@ -38,8 +47,8 @@ export function useVideoMetrics(publishedKols: KOL[]) {
+   }, []);
+ 
+   useEffect(() => {
+-    fetchMetrics();
+-  }, [fetchMetrics]);
++    fetchMetrics(kolIdsKey ? kolIdsKey.split(',') : []);
++  }, [kolIdsKey, fetchMetrics]);
+ 
+   const kolSummaries = useMemo((): KolMetricSummary[] => {
+     return publishedKols.map((kol) => {
+@@ -149,5 +158,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
+     [metrics],
+   );
+ 
+-  return { metrics, kolSummaries, aggregateTotals, trendData, sparklineData, loading, refresh: fetchMetrics };
++  const refresh = useCallback(() => fetchMetrics(kolIdsKey ? kolIdsKey.split(',') : []), [fetchMetrics, kolIdsKey]);
++
++  return { metrics, kolSummaries, aggregateTotals, trendData, sparklineData, loading, refresh };
+ }
+diff --git a/src/lib/kol-store.tsx b/src/lib/kol-store.tsx
+index ed7ac58..f4d70fd 100644
+--- a/src/lib/kol-store.tsx
++++ b/src/lib/kol-store.tsx
+@@ -1,6 +1,6 @@
+ import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+ import { supabase } from '@/integrations/supabase/client';
+-import type { KOL, Agency, Stage, Platform, ChangeLogEntry } from './mock-data';
++import type { KOL, Agency, Stage, Platform } from './mock-data';
+ 
+ interface KolStoreContext {
+   kols: KOL[];
+@@ -17,8 +17,8 @@ interface KolStoreContext {
+ 
+ const StoreContext = createContext<KolStoreContext | null>(null);
+ 
+-// Map DB row to frontend KOL type
+-function dbToKol(row: Record<string, unknown>, changeLogs: Record<string, unknown>[]): KOL {
++// Map DB row to frontend KOL type (changeLog loaded lazily via useKolChangelog)
++function dbToKol(row: Record<string, unknown>): KOL {
+   return {
+     id: row.id as string,
+     name: row.name as string,
+@@ -38,15 +38,6 @@ function dbToKol(row: Record<string, unknown>, changeLogs: Record<string, unknow
+     stageUpdatedAt: row.stage_updated_at as string,
+     publishedAt: (row.published_at as string) || undefined,
+     createdAt: row.created_at as string,
+-    changeLog: changeLogs
+-      .filter((cl) => cl.kol_id === row.id)
+-      .map((cl) => ({
+-        id: cl.id as string,
+-        fromStage: (cl.from_stage as Stage) || null,
+-        toStage: cl.to_stage as Stage,
+-        timestamp: cl.created_at as string,
+-        note: (cl.note as string) || undefined,
+-      })),
+   };
+ }
+ 
+@@ -64,23 +55,74 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
+   const [loading, setLoading] = useState(true);
+ 
+   const fetchData = useCallback(async () => {
+-    const [agencyRes, kolRes, logRes] = await Promise.all([
++    const [agencyRes, kolRes] = await Promise.all([
+       supabase.from('agencies').select('*').order('created_at'),
+       supabase.from('kols').select('*').order('created_at'),
+-      supabase.from('change_log').select('*').order('created_at'),
+     ]);
+ 
+     const agencyRows = (agencyRes.data || []) as Record<string, unknown>[];
+     const kolRows = (kolRes.data || []) as Record<string, unknown>[];
+-    const logRows = (logRes.data || []) as Record<string, unknown>[];
+ 
+     setAgencies(agencyRows.map(dbToAgency));
+-    setKols(kolRows.map((r) => dbToKol(r, logRows)));
++    setKols(kolRows.map(dbToKol));
+     setLoading(false);
+   }, []);
+ 
+   useEffect(() => {
+     fetchData();
++
++    // Realtime: kols table
++    const kolsChannel = supabase
++      .channel('kols-realtime')
++      .on(
++        'postgres_changes',
++        { event: '*', schema: 'public', table: 'kols' },
++        (payload) => {
++          if (payload.eventType === 'INSERT') {
++            setKols((prev) => [...prev, dbToKol(payload.new as Record<string, unknown>)]);
++          } else if (payload.eventType === 'UPDATE') {
++            setKols((prev) =>
++              prev.map((k) =>
++                k.id === (payload.new as Record<string, unknown>).id
++                  ? { ...dbToKol(payload.new as Record<string, unknown>), changeLog: k.changeLog }
++                  : k,
++              ),
++            );
++          } else if (payload.eventType === 'DELETE') {
++            setKols((prev) => prev.filter((k) => k.id !== (payload.old as Record<string, unknown>).id));
++          }
++        },
++      )
++      .subscribe();
++
++    // Realtime: agencies table
++    const agenciesChannel = supabase
++      .channel('agencies-realtime')
++      .on(
++        'postgres_changes',
++        { event: '*', schema: 'public', table: 'agencies' },
++        (payload) => {
++          if (payload.eventType === 'INSERT') {
++            setAgencies((prev) => [...prev, dbToAgency(payload.new as Record<string, unknown>)]);
++          } else if (payload.eventType === 'UPDATE') {
++            setAgencies((prev) =>
++              prev.map((a) =>
++                a.id === (payload.new as Record<string, unknown>).id
++                  ? dbToAgency(payload.new as Record<string, unknown>)
++                  : a,
++              ),
++            );
++          } else if (payload.eventType === 'DELETE') {
++            setAgencies((prev) => prev.filter((a) => a.id !== (payload.old as Record<string, unknown>).id));
++          }
++        },
++      )
++      .subscribe();
++
++    return () => {
++      supabase.removeChannel(kolsChannel);
++      supabase.removeChannel(agenciesChannel);
++    };
+   }, [fetchData]);
+ 
+   const addKol = useCallback(async (data: { name: string; platforms: Platform[]; agencyId: string; profileUrl?: string; contentDirection?: string; notes?: string; initialStage?: Stage }) => {
+@@ -102,9 +144,8 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
+       from_stage: null,
+       to_stage: stage,
+     });
+-
+-    await fetchData();
+-  }, [fetchData]);
++    // Realtime INSERT event will update state
++  }, []);
+ 
+   const updateKolStage = useCallback(async (kolId: string, newStage: Stage, note?: string) => {
+     const currentKol = kols.find((k) => k.id === kolId);
+@@ -123,12 +164,10 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
+       to_stage: newStage,
+       note: note || null,
+     });
+-
+-    await fetchData();
+-  }, [kols, fetchData]);
++    // Realtime UPDATE event will update state
++  }, [kols]);
+ 
+   const updateKolField = useCallback(async (kolId: string, updates: Partial<KOL>) => {
+-    // Map frontend field names to DB column names
+     const dbUpdates: Record<string, unknown> = {};
+     if (updates.scriptVersion !== undefined) dbUpdates.script_version = updates.scriptVersion;
+     if (updates.scriptComplete !== undefined) dbUpdates.script_complete = updates.scriptComplete;
+@@ -142,16 +181,16 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
+ 
+     if (Object.keys(dbUpdates).length > 0) {
+       await supabase.from('kols').update(dbUpdates).eq('id', kolId);
+-      await fetchData();
++      // Realtime UPDATE event will update state
+     }
+-  }, [fetchData]);
++  }, []);
+ 
+   const toggleTodaysFocus = useCallback(async (kolId: string) => {
+     const kol = kols.find((k) => k.id === kolId);
+     if (!kol) return;
+     await supabase.from('kols').update({ is_todays_focus: !kol.isTodaysFocus }).eq('id', kolId);
+-    await fetchData();
+-  }, [kols, fetchData]);
++    // Realtime UPDATE event will update state
++  }, [kols]);
+ 
+   const addAgency = useCallback(async (name: string): Promise<Agency> => {
+     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+@@ -168,16 +207,15 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
+       return { id: '', name, token };
+     }
+ 
+-    const agency = dbToAgency(inserted as Record<string, unknown>);
+-    await fetchData();
+-    return agency;
+-  }, [fetchData]);
++    // Return the newly created agency directly from the insert result
++    // Realtime INSERT event will also update state
++    return dbToAgency(inserted as Record<string, unknown>);
++  }, []);
+ 
+   const removeAgency = useCallback(async (agencyId: string) => {
+-    // KOLs and change_log will cascade delete via FK
+     await supabase.from('agencies').delete().eq('id', agencyId);
+-    await fetchData();
+-  }, [fetchData]);
++    // Realtime DELETE event will update state
++  }, []);
+ 
+   return (
+     <StoreContext.Provider value={{ kols, agencies, loading, addKol, updateKolStage, updateKolField, toggleTodaysFocus, addAgency, removeAgency, refresh: fetchData }}>
+diff --git a/src/lib/mock-data.ts b/src/lib/mock-data.ts
+index 7da61c5..116d2de 100644
+--- a/src/lib/mock-data.ts
++++ b/src/lib/mock-data.ts
+@@ -35,7 +35,7 @@ export interface KOL {
+   publishedAt?: string;
+   createdAt: string;
+   stageLinks?: Record<string, string>;
+-  changeLog: ChangeLogEntry[];
++  changeLog?: ChangeLogEntry[];
+ }
+ 
+ export interface Agency {
+diff --git a/supabase/functions/ai-chat-462b20ce438b/index.ts b/supabase/functions/ai-chat-462b20ce438b/index.ts
+index 21924db..fb8c615 100644
+--- a/supabase/functions/ai-chat-462b20ce438b/index.ts
++++ b/supabase/functions/ai-chat-462b20ce438b/index.ts
+@@ -1,4 +1,3 @@
+-
+ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+ 
+@@ -7,6 +6,318 @@ const corsHeaders = {
+   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+ };
+ 
++// ============================================================
++// Tool Definitions
++// ============================================================
++const TOOLS = [
++  {
++    name: "list_kols",
++    description: "List KOLs with optional filters. Use to answer questions about KOL status, overdue items, today's focus, stage distribution, etc.",
++    input_schema: {
++      type: "object",
++      properties: {
++        stage: {
++          type: "string",
++          enum: ["writing_idea", "writing_script", "creating_project", "video_production", "pre_publish", "published"],
++          description: "Filter by current workflow stage",
++        },
++        agency_id: { type: "string", description: "Filter by agency UUID" },
++        overdue_only: { type: "boolean", description: "Only return KOLs stuck in their stage for more than 2 days" },
++        is_todays_focus: { type: "boolean", description: "Only return KOLs marked as today's focus" },
++        platform: {
++          type: "string",
++          enum: ["youtube", "tiktok", "instagram", "x", "facebook"],
++          description: "Filter by platform",
++        },
++      },
++    },
++  },
++  {
++    name: "get_kol_details",
++    description: "Get full details of a specific KOL by name or ID, including recent change history. Use when user asks about a specific person.",
++    input_schema: {
++      type: "object",
++      properties: {
++        kol_name: { type: "string", description: "Partial or full KOL name (case-insensitive search)" },
++        kol_id: { type: "string", description: "KOL UUID" },
++      },
++    },
++  },
++  {
++    name: "update_kol_stage",
++    description: "Move a KOL to a new workflow stage. Automatically logs the change. Moving to pre_publish also marks as today's focus. Moving to published sets the publish timestamp.",
++    input_schema: {
++      type: "object",
++      properties: {
++        kol_id: { type: "string", description: "KOL UUID" },
++        new_stage: {
++          type: "string",
++          enum: ["writing_idea", "writing_script", "creating_project", "video_production", "pre_publish", "published"],
++          description: "The target stage",
++        },
++        note: { type: "string", description: "Optional reason for the stage change" },
++      },
++      required: ["kol_id", "new_stage"],
++    },
++  },
++  {
++    name: "toggle_todays_focus",
++    description: "Mark or unmark a KOL as today's focus.",
++    input_schema: {
++      type: "object",
++      properties: {
++        kol_id: { type: "string", description: "KOL UUID" },
++        is_focus: { type: "boolean", description: "true to mark as focus, false to unmark" },
++      },
++      required: ["kol_id", "is_focus"],
++    },
++  },
++  {
++    name: "get_summary",
++    description: "Get statistics summary: KOL count per stage, overdue count, published count. Optionally filtered by agency.",
++    input_schema: {
++      type: "object",
++      properties: {
++        agency_id: { type: "string", description: "Filter by agency UUID. Omit for all agencies." },
++      },
++    },
++  },
++];
++
++// ============================================================
++// Tool Execution
++// ============================================================
++// deno-lint-ignore no-explicit-any
++async function executeTool(name: string, input: Record<string, unknown>, supabase: any): Promise<unknown> {
++  switch (name) {
++    case "list_kols": return execListKols(input, supabase);
++    case "get_kol_details": return execGetKolDetails(input, supabase);
++    case "update_kol_stage": return execUpdateKolStage(input, supabase);
++    case "toggle_todays_focus": return execToggleTodaysFocus(input, supabase);
++    case "get_summary": return execGetSummary(input, supabase);
++    default: return { error: `Unknown tool: ${name}` };
++  }
++}
++
++// deno-lint-ignore no-explicit-any
++async function execListKols(input: Record<string, unknown>, supabase: any) {
++  let query = supabase
++    .from("kols")
++    .select("id, name, platforms, current_stage, is_todays_focus, stage_updated_at, agencies(name)");
++
++  if (input.stage) query = query.eq("current_stage", input.stage);
++  if (input.agency_id) query = query.eq("agency_id", input.agency_id);
++  if (input.is_todays_focus === true) query = query.eq("is_todays_focus", true);
++  if (input.platform) query = query.contains("platforms", [input.platform]);
++  if (input.overdue_only === true) {
++    const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
++    query = query.lt("stage_updated_at", cutoff).neq("current_stage", "published");
++  }
++
++  const { data, error } = await query.order("stage_updated_at");
++  if (error) return { error: error.message };
++
++  const now = Date.now();
++  // deno-lint-ignore no-explicit-any
++  return (data || []).map((k: any) => ({
++    id: k.id,
++    name: k.name,
++    stage: k.current_stage,
++    agency: k.agencies?.name || "Unknown",
++    days_in_stage: Math.floor((now - new Date(k.stage_updated_at).getTime()) / (1000 * 60 * 60 * 24)),
++    platforms: k.platforms,
++    is_todays_focus: k.is_todays_focus,
++  }));
++}
++
++// deno-lint-ignore no-explicit-any
++async function execGetKolDetails(input: Record<string, unknown>, supabase: any) {
++  if (!input.kol_id && !input.kol_name) return { error: "Provide either kol_id or kol_name" };
++
++  let query = supabase.from("kols").select("*, agencies(name)");
++  if (input.kol_id) {
++    query = query.eq("id", input.kol_id);
++  } else {
++    query = query.ilike("name", `%${input.kol_name}%`);
++  }
++
++  const { data, error } = await query.limit(1).maybeSingle();
++  if (error) return { error: error.message };
++  if (!data) return { error: "KOL not found" };
++
++  const { data: logs } = await supabase
++    .from("change_log")
++    .select("*")
++    .eq("kol_id", data.id)
++    .order("created_at", { ascending: false })
++    .limit(5);
++
++  const now = Date.now();
++  return {
++    id: data.id,
++    name: data.name,
++    platforms: data.platforms,
++    stage: data.current_stage,
++    agency: data.agencies?.name,
++    days_in_stage: Math.floor((now - new Date(data.stage_updated_at).getTime()) / (1000 * 60 * 60 * 24)),
++    script_version: data.script_version,
++    script_complete: data.script_complete,
++    video_version: data.video_version,
++    is_todays_focus: data.is_todays_focus,
++    notes: data.notes,
++    profile_url: data.profile_url,
++    content_direction: data.content_direction,
++    // deno-lint-ignore no-explicit-any
++    recent_changes: (logs || []).map((l: any) => ({
++      from: l.from_stage,
++      to: l.to_stage,
++      note: l.note,
++      date: l.created_at,
++    })),
++  };
++}
++
++// deno-lint-ignore no-explicit-any
++async function execUpdateKolStage(input: Record<string, unknown>, supabase: any) {
++  const { kol_id, new_stage, note } = input;
++
++  const { data: current } = await supabase
++    .from("kols")
++    .select("name, current_stage")
++    .eq("id", kol_id)
++    .maybeSingle();
++  if (!current) return { error: "KOL not found" };
++
++  const updates: Record<string, unknown> = {
++    current_stage: new_stage,
++    stage_updated_at: new Date().toISOString(),
++  };
++  if (new_stage === "pre_publish") updates.is_todays_focus = true;
++  if (new_stage === "published") updates.published_at = new Date().toISOString();
++
++  const { error } = await supabase.from("kols").update(updates).eq("id", kol_id);
++  if (error) return { error: error.message };
++
++  await supabase.from("change_log").insert({
++    kol_id,
++    from_stage: current.current_stage,
++    to_stage: new_stage,
++    note: note || null,
++  });
++
++  return {
++    success: true,
++    kol_name: current.name,
++    from_stage: current.current_stage,
++    to_stage: new_stage,
++  };
++}
++
++// deno-lint-ignore no-explicit-any
++async function execToggleTodaysFocus(input: Record<string, unknown>, supabase: any) {
++  const { kol_id, is_focus } = input;
++
++  const { data: kol } = await supabase.from("kols").select("name").eq("id", kol_id).maybeSingle();
++  if (!kol) return { error: "KOL not found" };
++
++  const { error } = await supabase.from("kols").update({ is_todays_focus: is_focus }).eq("id", kol_id);
++  if (error) return { error: error.message };
++
++  return { success: true, kol_name: kol.name, is_todays_focus: is_focus };
++}
++
++// deno-lint-ignore no-explicit-any
++async function execGetSummary(input: Record<string, unknown>, supabase: any) {
++  let query = supabase.from("kols").select("current_stage, stage_updated_at");
++  if (input.agency_id) query = query.eq("agency_id", input.agency_id);
++
++  const { data, error } = await query;
++  if (error) return { error: error.message };
++
++  const kols = data || [];
++  const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
++
++  const byStage: Record<string, number> = {};
++  let overdueCount = 0;
++  let publishedCount = 0;
++
++  // deno-lint-ignore no-explicit-any
++  for (const k of kols as any[]) {
++    byStage[k.current_stage] = (byStage[k.current_stage] || 0) + 1;
++    if (k.current_stage === "published") publishedCount++;
++    if (k.current_stage !== "published" && k.stage_updated_at < cutoff) overdueCount++;
++  }
++
++  return {
++    total: kols.length,
++    by_stage: byStage,
++    overdue_count: overdueCount,
++    published_count: publishedCount,
++  };
++}
++
++// ============================================================
++// Tool Summary for UI
++// ============================================================
++function buildToolSummary(name: string, result: unknown): string {
++  if (result && typeof result === "object" && "error" in result) {
++    return `Error: ${(result as { error: string }).error}`;
++  }
++  switch (name) {
++    case "list_kols": {
++      const arr = result as unknown[];
++      return `Found ${arr.length} KOL${arr.length !== 1 ? "s" : ""}`;
++    }
++    case "get_kol_details": {
++      const r = result as { name?: string };
++      return r.name ? `Got details for ${r.name}` : "Not found";
++    }
++    case "update_kol_stage": {
++      const r = result as { kol_name?: string; to_stage?: string };
++      return r.kol_name ? `Updated ${r.kol_name} → ${r.to_stage}` : "Failed";
++    }
++    case "toggle_todays_focus": {
++      const r = result as { kol_name?: string; is_todays_focus?: boolean };
++      return r.kol_name ? `${r.is_todays_focus ? "Marked" : "Unmarked"} ${r.kol_name}` : "Failed";
++    }
++    case "get_summary": {
++      const r = result as { total?: number; overdue_count?: number };
++      return `Total ${r.total} KOLs, ${r.overdue_count} overdue`;
++    }
++    default:
++      return "Done";
++  }
++}
++
++// ============================================================
++// Model Call Helper
++// ============================================================
++async function callModel(
++  messages: unknown[],
++  stream: boolean,
++  apiToken: string,
++  model: string,
++): Promise<Response> {
++  return fetch("https://api.enter.pro/code/api/v1/ai/messages", {
++    method: "POST",
++    headers: {
++      Authorization: `Bearer ${apiToken}`,
++      "Content-Type": "application/json",
++    },
++    body: JSON.stringify({
++      model,
++      messages,
++      tools: TOOLS,
++      tool_choice: { type: "auto" },
++      stream,
++      max_tokens: 4096,
++    }),
++  });
++}
++
++// ============================================================
++// Main Handler
++// ============================================================
+ serve(async (req) => {
+   if (req.method === "OPTIONS") {
+     return new Response(null, { headers: corsHeaders });
+@@ -14,100 +325,173 @@ serve(async (req) => {
+ 
+   try {
+     const AI_API_TOKEN = Deno.env.get("AI_API_TOKEN_462b20ce438b");
+-    if (!AI_API_TOKEN) {
+-      throw new Error("AI_API_TOKEN is not configured");
+-    }
++    if (!AI_API_TOKEN) throw new Error("AI_API_TOKEN is not configured");
+ 
+     const { messages, model, saveToKb, fileName, fileContent } = await req.json();
+ 
+-    // Set up Supabase client
+     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+     const supabase = createClient(supabaseUrl, supabaseKey);
+ 
+-    // If saveToKb is true and there's file content, save it to knowledge base
++    // Save file to KB if requested
+     if (saveToKb && fileContent && fileName) {
+-      const title = fileName.replace(/\.[^/.]+$/, ""); // Remove extension for title
++      const title = fileName.replace(/\.[^/.]+$/, "");
+       const { error: insertError } = await supabase.from("knowledge_base").insert({
+         title,
+         content: fileContent,
+         file_type: fileName.split(".").pop()?.toLowerCase() || "txt",
+       });
+-      if (insertError) {
+-        console.error("Failed to save to knowledge base:", insertError);
+-      } else {
+-        console.log(`Saved "${title}" to knowledge base`);
+-      }
++      if (insertError) console.error("Failed to save to knowledge base:", insertError);
++      else console.log(`Saved "${title}" to knowledge base`);
+     }
+ 
+-    // Fetch knowledge base entries for system context
++    // Fetch KB entries
+     const { data: kbEntries } = await supabase
+       .from("knowledge_base")
+       .select("title, content")
+       .order("created_at");
+ 
+-    let systemPrompt = `You are a helpful AI assistant for a KOL (Key Opinion Leader) marketing campaign management system. You help staff review copy, check publication info, and answer questions about KOL campaigns and brand guidelines.
++    // Build system prompt
++    let systemPrompt = `You are an intelligent AI agent for a KOL (Key Opinion Leader) marketing campaign management system. You can answer questions AND take direct actions by calling your tools.
+ 
+-Always respond in the same language as the user's message. Be concise and professional.`;
++You have the following tools available — USE THEM whenever relevant:
++
++1. list_kols — Query KOL list with optional filters (stage, agency, overdue, platform, today's focus)
++2. get_kol_details — Get full details of a specific KOL by name or ID, including recent change history
++3. update_kol_stage — Move a KOL to a new workflow stage (automatically logs the change)
++4. toggle_todays_focus — Mark or unmark a KOL as today's focus
++5. get_summary — Get statistics: count per stage, overdue count, published count
++
++CRITICAL RULES:
++- NEVER say you don't have tools, can't access data, or are a "pure knowledge assistant"
++- ALWAYS call a tool when the user asks about KOL status, data, or requests an action
++- Use tools to get accurate live data — do not guess or make up information
++- After completing write operations, confirm what was done
++- Always respond in the same language as the user's message
++- Be concise and professional`;
+ 
+     if (saveToKb && fileContent && fileName) {
+-      systemPrompt += `\n\nIMPORTANT: The user just uploaded a file named "${fileName}" and it has been automatically saved to the knowledge base. In your response, confirm that the document has been saved and provide a brief summary of the key points in the document.`;
++      systemPrompt += `\n\nIMPORTANT: The user just uploaded a file named "${fileName}" and it has been automatically saved to the knowledge base. Confirm that the document has been saved and provide a brief summary of key points.`;
+     }
+ 
+     if (kbEntries && kbEntries.length > 0) {
+       const kbText = kbEntries
+-        .map((entry: { title: string; content: string }) => `## ${entry.title}\n${entry.content}`)
++        // deno-lint-ignore no-explicit-any
++        .map((entry: any) => `## ${entry.title}\n${entry.content}`)
+         .join("\n\n");
+-      systemPrompt += `\n\nBelow is the brand's knowledge base. Use this information to answer questions accurately:\n\n${kbText}`;
++      systemPrompt += `\n\nBrand Knowledge Base:\n\n${kbText}`;
+     }
+ 
+-    // Prepend system message
+-    const fullMessages = [
++    const systemPair = [
+       { role: "user", content: systemPrompt },
+-      { role: "assistant", content: "Understood. I have the brand knowledge base loaded and will use it to assist you. How can I help?" },
+-      ...messages,
++      {
++        role: "assistant",
++        content:
++          "Understood. I have 5 tools available (list_kols, get_kol_details, update_kol_stage, toggle_todays_focus, get_summary) to query and manage KOL data in real time. I will always use them when needed. How can I help?",
++      },
+     ];
+ 
+-    const response = await fetch("https://api.enter.pro/code/api/v1/ai/messages", {
+-      method: "POST",
+-      headers: {
+-        Authorization: `Bearer ${AI_API_TOKEN}`,
+-        "Content-Type": "application/json",
+-      },
+-      body: JSON.stringify({
+-        model: model || "anthropic/claude-sonnet-4.5",
+-        messages: fullMessages,
+-        stream: true,
+-        max_tokens: 4096,
+-      }),
+-    });
++    const selectedModel = model || "anthropic/claude-sonnet-4.5";
+ 
+-    if (!response.ok) {
+-      const text = await response.text();
+-      let errorMessage = "AI service error";
+-      let errorCode = "api_error";
++    // Stream response to client
++    const responseStream = new ReadableStream({
++      async start(controller) {
++        const emit = (data: unknown) => {
++          controller.enqueue(
++            new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`),
++          );
++        };
+ 
+-      const dataMatch = text.match(/data: (.+)/);
+-      if (dataMatch) {
+         try {
+-          const errorData = JSON.parse(dataMatch[1]);
+-          errorMessage = errorData.error?.message || errorMessage;
+-          errorCode = errorData.error?.type || errorCode;
+-        } catch { /* use defaults */ }
+-      }
+-
+-      const errorSSE = `event: error\ndata: ${JSON.stringify({
+-        type: "error",
+-        error: { type: errorCode, message: errorMessage }
+-      })}\n\n`;
+-
+-      return new Response(errorSSE, {
+-        status: response.status,
+-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" }
+-      });
+-    }
++          let conversationMessages = [...systemPair, ...messages];
++          const MAX_ITERATIONS = 5;
++
++          for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
++            // Non-streaming call to check for tool use
++            const response = await callModel(conversationMessages, false, AI_API_TOKEN, selectedModel);
++
++            if (!response.ok) {
++              const text = await response.text();
++              let errorMessage = "AI service error";
++              let errorCode = "api_error";
++              const dataMatch = text.match(/data: (.+)/);
++              if (dataMatch) {
++                try {
++                  const errorData = JSON.parse(dataMatch[1]);
++                  errorMessage = errorData.error?.message || errorMessage;
++                  errorCode = errorData.error?.type || errorCode;
++                } catch { /* use defaults */ }
++              }
++              emit({ type: "error", error: { type: errorCode, message: errorMessage } });
++              controller.close();
++              return;
++            }
++
++            // deno-lint-ignore no-explicit-any
++            const result: any = await response.json();
++            const content = result.content || [];
++            const stopReason = result.stop_reason;
++
++            // deno-lint-ignore no-explicit-any
++            const toolUseBlocks = content.filter((b: any) => b.type === "tool_use");
+ 
+-    return new Response(response.body, {
++            if (stopReason === "tool_use" && toolUseBlocks.length > 0) {
++              // Execute each tool and emit progress events
++              const toolResults = [];
++              // deno-lint-ignore no-explicit-any
++              for (const block of toolUseBlocks as any[]) {
++                emit({ type: "tool_start", name: block.name, input: block.input });
++                const toolResult = await executeTool(block.name, block.input, supabase);
++                const summary = buildToolSummary(block.name, toolResult);
++                emit({ type: "tool_done", name: block.name, summary });
++                toolResults.push({
++                  type: "tool_result",
++                  tool_use_id: block.id,
++                  content: JSON.stringify(toolResult),
++                });
++              }
++
++              // Append assistant + tool results to conversation
++              conversationMessages = [
++                ...conversationMessages,
++                { role: "assistant", content },
++                { role: "user", content: toolResults },
++              ];
++              continue;
++            }
++
++            // No tool use — stream the final response
++            const streamResponse = await callModel(
++              conversationMessages,
++              true,
++              AI_API_TOKEN,
++              selectedModel,
++            );
++
++            if (!streamResponse.ok || !streamResponse.body) {
++              emit({ type: "error", error: { type: "api_error", message: "Streaming failed" } });
++              controller.close();
++              return;
++            }
++
++            const reader = streamResponse.body.getReader();
++            while (true) {
++              const { done, value } = await reader.read();
++              if (done) break;
++              controller.enqueue(value);
++            }
++            break;
++          }
++        } catch (err) {
++          // deno-lint-ignore no-explicit-any
++          emit({ type: "error", error: { type: "api_error", message: (err as any).message || "Unknown error" } });
++        } finally {
++          controller.close();
++        }
++      },
++    });
++
++    return new Response(responseStream, {
+       headers: {
+         ...corsHeaders,
+         "Content-Type": "text/event-stream",
+@@ -115,14 +499,11 @@ Always respond in the same language as the user's message. Be concise and profes
+       },
+     });
+   } catch (error) {
+-    const errorSSE = `event: error\ndata: ${JSON.stringify({
+-      type: "error",
+-      error: { type: "api_error", message: error.message }
+-    })}\n\n`;
+-
++    // deno-lint-ignore no-explicit-any
++    const errorSSE = `data: ${JSON.stringify({ type: "error", error: { type: "api_error", message: (error as any).message } })}\n\n`;
+     return new Response(errorSSE, {
+       status: 500,
+-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" }
++      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+     });
+   }
+ });
