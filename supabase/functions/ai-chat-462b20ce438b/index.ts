@@ -218,162 +218,158 @@ You have tools to query and update the KOL database. Use them when the user asks
       },
     ];
 
-    /* ---- conversation loop (max 5 tool rounds) ---- */
+    /* ---- conversation loop with live streaming ---- */
     const apiToken = Deno.env.get("AI_API_TOKEN_462b20ce438b")!;
     const apiBase = "https://api.enter.pro/code/api/v1/ai";
     const loopMessages = [...userMessages];
-    let finalStream: ReadableStream | null = null;
+    const encoder = new TextEncoder();
 
-    for (let round = 0; round < 6; round++) {
-      const isLast = round === 5;
-      const res = await fetch(`${apiBase}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 4096,
-          stream: true,
-          system: systemPrompt,
-          messages: loopMessages,
-          ...(isLast ? {} : { tools: toolDefs }),
-        }),
-      });
+    const stream = new ReadableStream({
+      async start(ctrl) {
+        const send = (event: string, data: unknown) => {
+          ctrl.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        };
 
-      if (!res.ok) {
-        const t = await res.text();
-        return new Response(t, {
-          status: res.status,
-          headers: corsHeaders,
-        });
-      }
+        try {
+          for (let round = 0; round < 6; round++) {
+            const isLast = round === 5;
+            const res = await fetch(`${apiBase}/messages`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model,
+                max_tokens: 4096,
+                stream: true,
+                system: systemPrompt,
+                messages: loopMessages,
+                ...(isLast ? {} : { tools: toolDefs }),
+              }),
+            });
 
-      /* ---- read full response to check for tool_use ---- */
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      const events: Array<{ event: string; data: string }> = [];
+            if (!res.ok) {
+              const t = await res.text();
+              const m = t.match(/data: (.+)/);
+              if (m) {
+                try {
+                  const d = JSON.parse(m[1]);
+                  send("error", d);
+                } catch {
+                  send("error", { type: "error", error: { type: "api_error", message: `API error: ${res.status}` } });
+                }
+              } else {
+                send("error", { type: "error", error: { type: "api_error", message: `API error: ${res.status}` } });
+              }
+              ctrl.close();
+              return;
+            }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop()!;
-        let currentEvent = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) currentEvent = line.slice(7).trim();
-          else if (line.startsWith("data: "))
-            events.push({ event: currentEvent, data: line.slice(6) });
-        }
-      }
+            /* Read full response to detect tool_use */
+            const reader = res.body!.getReader();
+            const decoder = new TextDecoder();
+            let buf = "";
+            const events: Array<{ event: string; data: string }> = [];
 
-      /* check if any content_block is tool_use */
-      const toolUseBlocks: Array<{
-        id: string;
-        name: string;
-        input: Record<string, unknown>;
-      }> = [];
-      let currentBlock: {
-        id: string;
-        name: string;
-        inputJson: string;
-      } | null = null;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buf += decoder.decode(value, { stream: true });
+              const lines = buf.split("\n");
+              buf = lines.pop()!;
+              let currentEvent = "";
+              for (const line of lines) {
+                if (line.startsWith("event: ")) currentEvent = line.slice(7).trim();
+                else if (line.startsWith("data: "))
+                  events.push({ event: currentEvent, data: line.slice(6) });
+              }
+            }
 
-      for (const ev of events) {
-        if (ev.event === "content_block_start") {
-          const d = JSON.parse(ev.data);
-          if (d.content_block?.type === "tool_use") {
-            currentBlock = {
-              id: d.content_block.id,
-              name: d.content_block.name,
-              inputJson: "",
-            };
+            /* Extract tool_use blocks */
+            const toolUseBlocks: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+            let currentBlock: { id: string; name: string; inputJson: string } | null = null;
+
+            for (const ev of events) {
+              if (ev.event === "content_block_start") {
+                const d = JSON.parse(ev.data);
+                if (d.content_block?.type === "tool_use") {
+                  currentBlock = { id: d.content_block.id, name: d.content_block.name, inputJson: "" };
+                }
+              } else if (ev.event === "content_block_delta" && currentBlock) {
+                const d = JSON.parse(ev.data);
+                if (d.delta?.type === "input_json_delta")
+                  currentBlock.inputJson += d.delta.partial_json;
+              } else if (ev.event === "content_block_stop" && currentBlock) {
+                toolUseBlocks.push({
+                  id: currentBlock.id,
+                  name: currentBlock.name,
+                  input: currentBlock.inputJson ? JSON.parse(currentBlock.inputJson) : {},
+                });
+                currentBlock = null;
+              }
+            }
+
+            if (toolUseBlocks.length === 0 || isLast) {
+              /* No tool calls - forward buffered events to client */
+              for (const e of events) {
+                ctrl.enqueue(encoder.encode(`event: ${e.event}\ndata: ${e.data}\n\n`));
+              }
+              ctrl.close();
+              return;
+            }
+
+            /* ---- Execute tools with live progress events ---- */
+            const assistantContent: unknown[] = [];
+            let textBuf = "";
+            for (const ev of events) {
+              if (ev.event === "content_block_start") {
+                const d = JSON.parse(ev.data);
+                if (d.content_block?.type === "text") textBuf = d.content_block.text ?? "";
+              } else if (ev.event === "content_block_delta") {
+                const d = JSON.parse(ev.data);
+                if (d.delta?.type === "text_delta") textBuf += d.delta.text;
+              } else if (ev.event === "content_block_stop") {
+                if (textBuf) assistantContent.push({ type: "text", text: textBuf });
+                textBuf = "";
+              }
+            }
+            for (const tb of toolUseBlocks) {
+              assistantContent.push({ type: "tool_use", id: tb.id, name: tb.name, input: tb.input });
+            }
+            loopMessages.push({ role: "assistant", content: assistantContent });
+
+            const toolResults: unknown[] = [];
+            for (const tb of toolUseBlocks) {
+              // Send tool_start to client
+              send("message", { type: "tool_start", name: tb.name, input: tb.input });
+
+              const fn = TOOLS[tb.name];
+              let result: unknown = { error: "unknown tool" };
+              if (fn) {
+                try { result = await fn(tb.input); }
+                catch (e) { result = { error: String(e) }; }
+              }
+
+              // Send tool_done to client
+              const summary = typeof result === "object" && result !== null && "error" in (result as Record<string, unknown>)
+                ? `Error: ${(result as Record<string, unknown>).error}`
+                : "Done";
+              send("message", { type: "tool_done", name: tb.name, summary });
+
+              toolResults.push({ type: "tool_result", tool_use_id: tb.id, content: JSON.stringify(result) });
+            }
+            loopMessages.push({ role: "user", content: toolResults });
           }
-        } else if (
-          ev.event === "content_block_delta" &&
-          currentBlock
-        ) {
-          const d = JSON.parse(ev.data);
-          if (d.delta?.type === "input_json_delta")
-            currentBlock.inputJson += d.delta.partial_json;
-        } else if (ev.event === "content_block_stop" && currentBlock) {
-          toolUseBlocks.push({
-            id: currentBlock.id,
-            name: currentBlock.name,
-            input: currentBlock.inputJson
-              ? JSON.parse(currentBlock.inputJson)
-              : {},
-          });
-          currentBlock = null;
+          ctrl.close();
+        } catch (e) {
+          send("error", { type: "error", error: { type: "api_error", message: String(e) } });
+          ctrl.close();
         }
-      }
+      },
+    });
 
-      if (toolUseBlocks.length === 0 || isLast) {
-        /* No tool calls → stream the buffered events to client */
-        const body = events
-          .map((e) => `event: ${e.event}\ndata: ${e.data}\n\n`)
-          .join("");
-        finalStream = new ReadableStream({
-          start(ctrl) {
-            ctrl.enqueue(new TextEncoder().encode(body));
-            ctrl.close();
-          },
-        });
-        break;
-      }
-
-      /* ---- execute tools & continue ---- */
-      // Build assistant message content (text blocks + tool_use blocks)
-      const assistantContent: unknown[] = [];
-      let textBuf = "";
-      let blockIdx = 0;
-      for (const ev of events) {
-        if (ev.event === "content_block_start") {
-          const d = JSON.parse(ev.data);
-          if (d.content_block?.type === "text") textBuf = d.content_block.text ?? "";
-          blockIdx = d.index ?? blockIdx;
-        } else if (ev.event === "content_block_delta") {
-          const d = JSON.parse(ev.data);
-          if (d.delta?.type === "text_delta") textBuf += d.delta.text;
-        } else if (ev.event === "content_block_stop") {
-          if (textBuf) assistantContent.push({ type: "text", text: textBuf });
-          textBuf = "";
-        }
-      }
-      for (const tb of toolUseBlocks) {
-        assistantContent.push({
-          type: "tool_use",
-          id: tb.id,
-          name: tb.name,
-          input: tb.input,
-        });
-      }
-      loopMessages.push({ role: "assistant", content: assistantContent });
-
-      const toolResults: unknown[] = [];
-      for (const tb of toolUseBlocks) {
-        const fn = TOOLS[tb.name];
-        let result: unknown = { error: "unknown tool" };
-        if (fn) {
-          try {
-            result = await fn(tb.input);
-          } catch (e) {
-            result = { error: String(e) };
-          }
-        }
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: tb.id,
-          content: JSON.stringify(result),
-        });
-      }
-      loopMessages.push({ role: "user", content: toolResults });
-    }
-
-    return new Response(finalStream!, {
+    return new Response(stream, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
