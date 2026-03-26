@@ -1,27 +1,24 @@
-# Performance Charts: Daily Incremental Data
+# Fix: KolTickerCard Deltas Not Showing Changes
 
 ## Context
-Performance 页面的折线图目前显示的是每日累计快照值，用户希望改为**每日增量**（当天值 - 前一天值），以便直观看到每天的变化趋势。
+Sparkline 折线图已改为每日增量，但卡片下方的 totals/deltas 仍然使用"最近两条原始记录"比较，导致与折线图趋势不一致，delta 经常显示 0%。
 
-## Changes
+## Change
 
-### `src/hooks/useVideoMetrics.ts`
+### `src/hooks/useVideoMetrics.ts` — `kolSummaries` 计算
 
-**trendData** (MarketOverview 大折线图):
-- 现有逻辑已经按天聚合了每个 kol+platform 的最新快照值
-- 新增：排序后计算相邻两天的差值 `day[i] - day[i-1]`
-- 第一天的增量为其自身值（无前一天可比）
-- 返回 `{ date, views, likes, comments, shares }` 其中值为增量
+当前逻辑:
+- `totals` = 每个平台最近一条记录的累计值之和
+- `deltas` = 最近一条 vs 倒数第二条记录的百分比变化
 
-**sparklineData** (KolTickerCard 小迷你图):
-- 现有逻辑按天聚合该 KOL 所有平台的 views 总和
-- 新增：排序后计算相邻两天的 views 差值
-- 返回 `{ date, views }` 其中 views 为每日增量
+新逻辑（与折线图保持一致）:
+- `totals` = 最近一天的每日增量（当天快照 - 前一天快照）
+- `deltas` = 最近一天增量 vs 前一天增量的百分比变化
+- 按天聚合该 KOL 所有平台的数据，取最近两天计算
 
-### `src/components/performance/MarketOverview.tsx`
-- 图表标题从 "Views Trend" 改为 "Daily Views Change"
+如果只有一天数据，totals 显示当天值，deltas 显示 0%。
 
 ## Verification
-- 有数据时：折线图显示每日增量而非累计值
-- 无数据时：仍显示 "No data yet"
-- Sparkline 颜色仍根据 deltas.views 正负决定
+- 有多天数据时：totals 显示最近一天增量，deltas 显示增量的变化百分比
+- 只有一天数据时：totals 显示当天值，deltas 为 0%
+- 无数据时：显示 "No data yet"
