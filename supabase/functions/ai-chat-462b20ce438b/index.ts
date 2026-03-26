@@ -220,7 +220,7 @@ You have tools to query and update the KOL database. Use them when the user asks
 
     /* ---- conversation loop (max 5 tool rounds) ---- */
     const apiToken = Deno.env.get("AI_API_TOKEN_462b20ce438b")!;
-    const apiBase = "https://api.enter.dev/code/api/v1/ai";
+    const apiBase = "https://api.enter.pro/code/api/v1/ai";
     const loopMessages = [...userMessages];
     let finalStream: ReadableStream | null = null;
 
