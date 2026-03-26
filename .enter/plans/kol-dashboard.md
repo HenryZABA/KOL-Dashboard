@@ -1,18 +1,22 @@
-# Plan: Performance Card Data Logic
+# Plan: Fix duplicate record aggregation bug in metrics
 
 ## Context
-User wants card metrics to show cumulative totals (sum of latest records) while the sparkline shows daily increments. The delta percentages should reflect the daily increment change (matching the sparkline trend).
+When multiple metric records exist for the same KOL + platform on the same day, the `kolSummaries` deltas and `sparklineData` incorrectly SUM all records instead of keeping only the latest one. This causes wildly incorrect delta percentages (e.g., +200% instead of +0.01%).
 
-## Changes
+## Root Cause
+`dayMap` in both `kolSummaries` and `sparklineData` does `+=` for all records on the same day, but the data contains cumulative snapshots (not incremental), so duplicates get double/triple counted.
 
-### File: `src/hooks/useVideoMetrics.ts` — `kolSummaries`
+## Fix
 
-1. **`totals`**: Revert to cumulative — sum of latest record per platform (original logic)
-2. **`deltas`**: Based on daily increments — `(today_increment - yesterday_increment) / yesterday_increment * 100`
-   - Uses the same day-aggregated snapshots as sparkline
-   - Needs 2+ days for increments, 3+ days for delta %
+### File: `src/hooks/useVideoMetrics.ts`
+
+1. **`kolSummaries` dayMap**: Change from sum-all to deduplicate per `day + platform`, keeping only the latest `recorded_at` per combo, then sum across platforms per day.
+
+2. **`sparklineData` dayMap**: Same fix — deduplicate per `day + platform` before summing across platforms.
+
+Both should match the existing `trendData` deduplication pattern (lines 137-145).
 
 ## Verification
-- Totals should show large cumulative numbers
-- Deltas should show % matching the sparkline trend direction
-- KOLs with only 1 day data: totals show values, deltas show 0%
+- BeerMoneyForum should show ~0.01% delta (not 200%)
+- Sparkline should show flat trend (views only changed by 10)
+- KOLs with single daily records should be unaffected
