@@ -110,11 +110,9 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     return t;
   }, [kolSummaries]);
 
-  // Time-series for aggregate chart (grouped by recorded_at date)
+  // Time-series for aggregate chart (grouped by recorded_at date) — DAILY INCREMENTS
   const trendData = useMemo(() => {
-    const dayMap = new Map<string, { views: number; likes: number; comments: number; shares: number }>();
-
-    // We need the latest metric per kol+platform per day
+    // Step 1: Get snapshot per day (latest metric per kol+platform per day)
     const byDay = new Map<string, Map<string, VideoMetric>>();
     for (const m of metrics) {
       const day = m.recorded_at.slice(0, 10);
@@ -126,23 +124,35 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       }
     }
 
+    // Step 2: Sum per day
+    const snapshots: { date: string; views: number; likes: number; comments: number; shares: number }[] = [];
     for (const [day, metricsMap] of byDay) {
-      const totals = { views: 0, likes: 0, comments: 0, shares: 0 };
+      const t = { views: 0, likes: 0, comments: 0, shares: 0 };
       for (const m of metricsMap.values()) {
-        totals.views += m.views;
-        totals.likes += m.likes;
-        totals.comments += m.comments;
-        totals.shares += m.shares;
+        t.views += m.views;
+        t.likes += m.likes;
+        t.comments += m.comments;
+        t.shares += m.shares;
       }
-      dayMap.set(day, totals);
+      snapshots.push({ date: day, ...t });
     }
+    snapshots.sort((a, b) => a.date.localeCompare(b.date));
 
-    return Array.from(dayMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, totals]) => ({ date, ...totals }));
+    // Step 3: Convert to daily increments (day[i] - day[i-1])
+    return snapshots.map((snap, i) => {
+      if (i === 0) return snap; // first day uses its own value as the increment
+      const prev = snapshots[i - 1];
+      return {
+        date: snap.date,
+        views: Math.max(0, snap.views - prev.views),
+        likes: Math.max(0, snap.likes - prev.likes),
+        comments: Math.max(0, snap.comments - prev.comments),
+        shares: Math.max(0, snap.shares - prev.shares),
+      };
+    });
   }, [metrics]);
 
-  // Sparkline data per KOL (views over time)
+  // Sparkline data per KOL (daily views increments)
   const sparklineData = useCallback(
     (kolId: string): { date: string; views: number }[] => {
       const kolMetrics = metrics.filter((m) => m.kol_id === kolId);
@@ -151,9 +161,15 @@ export function useVideoMetrics(publishedKols: KOL[]) {
         const day = m.recorded_at.slice(0, 10);
         dayMap.set(day, (dayMap.get(day) || 0) + m.views);
       }
-      return Array.from(dayMap.entries())
+      const snapshots = Array.from(dayMap.entries())
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, views]) => ({ date, views }));
+
+      // Convert to daily increments
+      return snapshots.map((snap, i) => {
+        if (i === 0) return snap;
+        return { date: snap.date, views: Math.max(0, snap.views - snapshots[i - 1].views) };
+      });
     },
     [metrics],
   );

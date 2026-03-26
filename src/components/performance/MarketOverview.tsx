@@ -56,7 +56,7 @@ export function MarketOverview({ totals, trendData, kolSummaries }: MarketOvervi
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Trend chart */}
         <div className="flex-1 rounded-lg border bg-card p-4 shadow-card">
-          <h3 className="text-sm font-medium text-card-foreground mb-3">Views Trend</h3>
+          <h3 className="text-sm font-medium text-card-foreground mb-3">Daily Views Change</h3>
           {trendData.length > 0 ? (
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
