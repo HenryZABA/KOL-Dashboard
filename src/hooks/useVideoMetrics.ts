@@ -78,16 +78,26 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       }
 
       // DELTAS: based on daily increments (matching sparkline logic)
-      // Aggregate snapshots by day across all platforms
-      const dayMap = new Map<string, { views: number; likes: number; comments: number; shares: number }>();
+      // Deduplicate: keep latest record per day+platform, then sum across platforms
+      const dayPlatformMap = new Map<string, Map<string, VideoMetric>>();
       for (const m of kolMetrics) {
         const day = m.recorded_at.slice(0, 10);
-        const existing = dayMap.get(day) || { views: 0, likes: 0, comments: 0, shares: 0 };
-        existing.views += m.views;
-        existing.likes += m.likes;
-        existing.comments += m.comments;
-        existing.shares += m.shares;
-        dayMap.set(day, existing);
+        if (!dayPlatformMap.has(day)) dayPlatformMap.set(day, new Map());
+        const existing = dayPlatformMap.get(day)!.get(m.platform);
+        if (!existing || new Date(m.recorded_at) > new Date(existing.recorded_at)) {
+          dayPlatformMap.get(day)!.set(m.platform, m);
+        }
+      }
+      const dayMap = new Map<string, { views: number; likes: number; comments: number; shares: number }>();
+      for (const [day, platMap] of dayPlatformMap) {
+        const t = { views: 0, likes: 0, comments: 0, shares: 0 };
+        for (const m of platMap.values()) {
+          t.views += m.views;
+          t.likes += m.likes;
+          t.comments += m.comments;
+          t.shares += m.shares;
+        }
+        dayMap.set(day, t);
       }
       const days = Array.from(dayMap.entries()).sort(([a], [b]) => a.localeCompare(b));
 
@@ -189,14 +199,23 @@ export function useVideoMetrics(publishedKols: KOL[]) {
   const sparklineData = useCallback(
     (kolId: string): { date: string; views: number }[] => {
       const kolMetrics = metrics.filter((m) => m.kol_id === kolId);
-      const dayMap = new Map<string, number>();
+      // Deduplicate: keep latest record per day+platform, then sum across platforms
+      const dayPlatMap = new Map<string, Map<string, VideoMetric>>();
       for (const m of kolMetrics) {
         const day = m.recorded_at.slice(0, 10);
-        dayMap.set(day, (dayMap.get(day) || 0) + m.views);
+        if (!dayPlatMap.has(day)) dayPlatMap.set(day, new Map());
+        const existing = dayPlatMap.get(day)!.get(m.platform);
+        if (!existing || new Date(m.recorded_at) > new Date(existing.recorded_at)) {
+          dayPlatMap.get(day)!.set(m.platform, m);
+        }
       }
-      const snapshots = Array.from(dayMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, views]) => ({ date, views }));
+      const snapshots: { date: string; views: number }[] = [];
+      for (const [day, platMap] of dayPlatMap) {
+        let views = 0;
+        for (const m of platMap.values()) views += m.views;
+        snapshots.push({ date: day, views });
+      }
+      snapshots.sort((a, b) => a.date.localeCompare(b.date));
 
       // Convert to daily increments
       return snapshots.map((snap, i) => {
