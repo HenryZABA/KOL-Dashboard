@@ -1,61 +1,74 @@
-# Video Performance Dashboard (Stock-Ticker Style)
+# AI Chat Refactoring Plan
 
 ## Context
-Need a new sidebar page showing published KOLs' video performance data (views, likes, comments, shares) in a stock-market-inspired dashboard. Data is written via the existing CRUD API by external agents.
 
-## 1. Database: `video_metrics` table
-```sql
-CREATE TABLE video_metrics (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  kol_id UUID NOT NULL REFERENCES kols(id) ON DELETE CASCADE,
-  platform TEXT NOT NULL, -- youtube/tiktok/instagram/x/facebook
-  views BIGINT NOT NULL DEFAULT 0,
-  likes BIGINT NOT NULL DEFAULT 0,
-  comments BIGINT NOT NULL DEFAULT 0,
-  shares BIGINT NOT NULL DEFAULT 0,
-  recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+AI chat has been broken through multiple patch attempts. The root cause is a complex SSE event parsing + re-forwarding pipeline in the edge function, combined with `fetchEventSource.onmessage` only receiving `event: message` type events. The current edge function buffers all upstream SSE, manually parses tool_use blocks, runs tools, then tries to re-emit events — too many failure points.
+
+## Root Cause Analysis
+
+1. **Edge Function**: Buffers ALL Claude SSE events, manually parses them, then re-serializes and re-emits. SSE line parsing (splitting by `\n`, tracking `currentEvent`) is fragile — any edge case (partial chunks, multi-line data) breaks it.
+2. **Event type mismatch**: `fetchEventSource.onmessage` ONLY fires for `event: message` or events with no `event:` prefix. The edge function previously forwarded with original event names (`content_block_start`, etc.), which `onmessage` ignores.
+3. **SSE parsing fragility**: The `content_block_stop` vs `content_block_start` state machine for tracking `currentBlock` (tool_use) can silently fail if events arrive in unexpected order.
+
+## Approach: Simplify the Architecture
+
+**Strategy**: Remove all SSE-level parsing from the edge function. Instead:
+
+1. **Edge Function**: Call Claude API with `stream: false` (non-streaming). This returns a simple JSON response that's trivial to parse. Extract tool_use from the JSON, run tools, loop. Send the final result back as a single SSE stream with our own simple event format.
+2. **Frontend**: Keep `fetchEventSource` but receive our own simplified event protocol — just `tool_start`, `tool_done`, `text_delta`, `done`, `error`.
+
+This eliminates all Claude SSE parsing complexity from the edge function while keeping frontend streaming UX.
+
+### Edge Function Protocol (our own, not Claude's)
+
+All events use `event: message` so `onmessage` receives them:
+
 ```
-- Multiple rows per KOL+platform over time to track trends
-- `recorded_at` = when the data was sampled (allows historical trend)
-- RLS: open for anon read/write (same as kols)
+data: {"type":"tool_start","name":"list_kols","input":{}}
+data: {"type":"tool_done","name":"list_kols","summary":"Done"}
+data: {"type":"text_delta","text":"Here are the KOLs..."}
+data: {"type":"done"}
+```
 
-## 2. API: `manage-video-metrics` Edge Function
-- **POST**: Insert a new metric snapshot `{kol_id, platform, views, likes, comments, shares, recorded_at?}`
-- **GET**: List metrics `?kol_id=` or `?latest=true` (returns most recent per KOL+platform)
-- **DELETE**: Remove a metric by id
+### Why `stream: false` on server side?
 
-## 3. UI: `PerformancePage.tsx`
-Two main sections:
+- Tool calling requires reading the FULL response anyway to detect tool_use blocks
+- Current code already buffers the entire response — `stream: true` provides zero benefit server-side
+- JSON parsing is 100% reliable vs hand-rolled SSE parsing
+- Eliminates the most complex and bug-prone part of the codebase
 
-### Section A — Ticker Board (individual KOLs)
-- Grid of cards, one per published KOL
-- Each card shows: KOL name, platform icons, latest metrics (views/likes/comments/shares)
-- Delta indicators (up/down arrows + percentage change vs. previous snapshot) — green for up, red for down, like stock price movement
-- Mini sparkline chart showing views trend (last N snapshots)
-- Sortable by any metric column
+### Trade-off
 
-### Section B — Market Overview (totals)
-- Summary stat cards: Total Views, Total Likes, Total Comments, Total Shares across all published KOLs
-- A combined trend chart (recharts AreaChart) showing aggregate views over time
-- Top performers list (top 3 by views)
+- Slightly longer initial wait (no thinking/text streaming during the Claude API call itself)
+- But tool steps still stream in real-time to the frontend
+- Final text response is sent as chunked `text_delta` events (simulated streaming) for good UX
 
-### Design tokens (index.css)
-- `--metric-up: 142 71% 45%` (green, reuse --success)
-- `--metric-down: 0 84% 60%` (red, reuse --overdue)
+## Files to Modify
 
-## 4. Files to create/modify
-- **DB migration**: `video_metrics` table + RLS
-- **Edge Function**: `manage-video-metrics`
-- **New page**: `src/pages/PerformancePage.tsx`
-- **New component**: `src/components/performance/KolTickerCard.tsx`
-- **New component**: `src/components/performance/MarketOverview.tsx`
-- **Router**: `src/router.tsx` — add `/dashboard/performance`
-- **Sidebar**: `src/components/layout/AppSidebar.tsx` — add nav item with BarChart3 icon
-- **Settings**: `src/pages/SettingsPage.tsx` — add video metrics API info
+### 1. `supabase/functions/ai-chat-462b20ce438b/index.ts` — Full rewrite
+
+- Keep: tool implementations (listKols, getKolDetails, etc.), system prompt, KB loading, CORS
+- Change: Use `stream: false` for Claude API calls
+- Change: Parse JSON response instead of SSE
+- Change: Emit our own simplified SSE events via `ReadableStream`
+- Change: Chunk final text into `text_delta` events (e.g., 20 chars at a time) for streaming feel
+
+### 2. `src/hooks/useAiChat.ts` — Simplify onmessage handler
+
+- Remove `content_block_start`, `content_block_delta`, `content_block_stop`, `message_stop` handling
+- Add `text_delta` handler: append text to assistant message
+- Add `done` handler: set isStreaming = false  
+- Keep: `tool_start`, `tool_done` handling (unchanged)
+- Keep: error handling, abort, clearChat
+
+### 3. `src/components/ai/AiChatPanel.tsx` — No changes needed
+
+The component already handles all the state correctly.
 
 ## Verification
-- Insert sample metrics via API
-- Verify ticker cards show data with delta indicators
-- Verify summary section shows aggregate totals + chart
+
+1. Send a simple message like "你好" — should see text response stream in
+2. Send "列出所有KOL" — should see tool_start (list_kols), tool_done, then text response
+3. Send a multi-turn conversation — history should work correctly
+4. Clear chat and send again — should work
+5. Check no console errors
