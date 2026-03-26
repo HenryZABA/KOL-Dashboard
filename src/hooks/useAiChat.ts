@@ -77,7 +77,9 @@ export function useAiChat() {
             },
             body: JSON.stringify({
               messages: [
-                ...messages.map((m) => ({ role: m.role, content: m.content })),
+                ...messages
+                  .filter((m) => m.content.trim() !== '')
+                  .map((m) => ({ role: m.role, content: m.content })),
                 { role: 'user', content: aiContent },
               ],
               model: 'anthropic/claude-sonnet-4.5',
