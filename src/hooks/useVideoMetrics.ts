@@ -153,7 +153,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     return t;
   }, [kolSummaries]);
 
-  // Time-series for aggregate chart (grouped by recorded_at date) — DAILY INCREMENTS
+  // Time-series for aggregate chart (grouped by recorded_at date) — DAILY GROWTH RATE (%)
   const trendData = useMemo(() => {
     // Step 1: Get snapshot per day (latest metric per kol+platform per day)
     const byDay = new Map<string, Map<string, VideoMetric>>();
@@ -181,21 +181,21 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     }
     snapshots.sort((a, b) => a.date.localeCompare(b.date));
 
-    // Step 3: Convert to daily increments (day[i] - day[i-1])
+    // Step 3: Convert to daily growth rate (%)
     return snapshots.map((snap, i) => {
-      if (i === 0) return snap; // first day uses its own value as the increment
+      if (i === 0) return { date: snap.date, views: 0, likes: 0, comments: 0, shares: 0 };
       const prev = snapshots[i - 1];
       return {
         date: snap.date,
-        views: Math.max(0, snap.views - prev.views),
-        likes: Math.max(0, snap.likes - prev.likes),
-        comments: Math.max(0, snap.comments - prev.comments),
-        shares: Math.max(0, snap.shares - prev.shares),
+        views: prev.views !== 0 ? parseFloat(((snap.views - prev.views) / prev.views * 100).toFixed(2)) : 0,
+        likes: prev.likes !== 0 ? parseFloat(((snap.likes - prev.likes) / prev.likes * 100).toFixed(2)) : 0,
+        comments: prev.comments !== 0 ? parseFloat(((snap.comments - prev.comments) / prev.comments * 100).toFixed(2)) : 0,
+        shares: prev.shares !== 0 ? parseFloat(((snap.shares - prev.shares) / prev.shares * 100).toFixed(2)) : 0,
       };
     });
   }, [metrics]);
 
-  // Sparkline data per KOL (daily views increments)
+  // Sparkline data per KOL (daily views growth rate %)
   const sparklineData = useCallback(
     (kolId: string): { date: string; views: number }[] => {
       const kolMetrics = metrics.filter((m) => m.kol_id === kolId);
@@ -217,10 +217,12 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       }
       snapshots.sort((a, b) => a.date.localeCompare(b.date));
 
-      // Convert to daily increments
+      // Convert to daily growth rate (%)
       return snapshots.map((snap, i) => {
-        if (i === 0) return snap;
-        return { date: snap.date, views: Math.max(0, snap.views - snapshots[i - 1].views) };
+        if (i === 0) return { date: snap.date, views: 0 };
+        const prev = snapshots[i - 1].views;
+        const pct = prev !== 0 ? ((snap.views - prev) / prev) * 100 : 0;
+        return { date: snap.date, views: parseFloat(pct.toFixed(2)) };
       });
     },
     [metrics],

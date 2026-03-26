@@ -56,7 +56,7 @@ export function MarketOverview({ totals, trendData, kolSummaries }: MarketOvervi
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Trend chart */}
         <div className="flex-1 rounded-lg border bg-card p-4 shadow-card">
-          <h3 className="text-sm font-medium text-card-foreground mb-3">Daily Views Change</h3>
+          <h3 className="text-sm font-medium text-card-foreground mb-3">Daily Views Growth Rate (%)</h3>
           {trendData.length > 0 ? (
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -77,10 +77,10 @@ export function MarketOverview({ totals, trendData, kolSummaries }: MarketOvervi
                   />
                   <YAxis
                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={formatNumber}
+                    tickFormatter={(v: number) => `${v.toFixed(1)}%`}
                     axisLine={false}
                     tickLine={false}
-                    width={45}
+                    width={50}
                   />
                   <Tooltip
                     contentStyle={{
@@ -90,7 +90,7 @@ export function MarketOverview({ totals, trendData, kolSummaries }: MarketOvervi
                       fontSize: '12px',
                     }}
                     labelStyle={{ color: 'hsl(var(--card-foreground))' }}
-                    formatter={(value: number) => [formatNumber(value), 'Views']}
+                    formatter={(value: number) => [`${value.toFixed(2)}%`, 'Views Growth']}
                   />
                   <Area
                     type="monotone"
