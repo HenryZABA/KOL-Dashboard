@@ -35,7 +35,7 @@ export interface KOL {
   publishedAt?: string;
   createdAt: string;
   stageLinks?: Record<string, string>;
-  changeLog: ChangeLogEntry[];
+  changeLog?: ChangeLogEntry[];
 }
 
 export interface Agency {
@@ -77,6 +77,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   tiktok: 'TikTok',
   instagram: 'Instagram',
   x: 'X',
+  facebook: 'Facebook',
 };
 
 function daysAgo(n: number): string {

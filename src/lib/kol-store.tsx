@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { KOL, Agency, Stage, Platform, ChangeLogEntry } from './mock-data';
+import type { KOL, Agency, Stage, Platform } from './mock-data';
 
 interface KolStoreContext {
   kols: KOL[];
@@ -17,8 +17,8 @@ interface KolStoreContext {
 
 const StoreContext = createContext<KolStoreContext | null>(null);
 
-// Map DB row to frontend KOL type
-function dbToKol(row: Record<string, unknown>, changeLogs: Record<string, unknown>[]): KOL {
+// Map DB row to frontend KOL type (changeLog loaded lazily via useKolChangelog)
+function dbToKol(row: Record<string, unknown>): KOL {
   return {
     id: row.id as string,
     name: row.name as string,
@@ -38,15 +38,6 @@ function dbToKol(row: Record<string, unknown>, changeLogs: Record<string, unknow
     stageUpdatedAt: row.stage_updated_at as string,
     publishedAt: (row.published_at as string) || undefined,
     createdAt: row.created_at as string,
-    changeLog: changeLogs
-      .filter((cl) => cl.kol_id === row.id)
-      .map((cl) => ({
-        id: cl.id as string,
-        fromStage: (cl.from_stage as Stage) || null,
-        toStage: cl.to_stage as Stage,
-        timestamp: cl.created_at as string,
-        note: (cl.note as string) || undefined,
-      })),
   };
 }
 
@@ -64,23 +55,74 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    const [agencyRes, kolRes, logRes] = await Promise.all([
+    const [agencyRes, kolRes] = await Promise.all([
       supabase.from('agencies').select('*').order('created_at'),
       supabase.from('kols').select('*').order('created_at'),
-      supabase.from('change_log').select('*').order('created_at'),
     ]);
 
     const agencyRows = (agencyRes.data || []) as Record<string, unknown>[];
     const kolRows = (kolRes.data || []) as Record<string, unknown>[];
-    const logRows = (logRes.data || []) as Record<string, unknown>[];
 
     setAgencies(agencyRows.map(dbToAgency));
-    setKols(kolRows.map((r) => dbToKol(r, logRows)));
+    setKols(kolRows.map(dbToKol));
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchData();
+
+    // Realtime: kols table
+    const kolsChannel = supabase
+      .channel('kols-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'kols' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setKols((prev) => [...prev, dbToKol(payload.new as Record<string, unknown>)]);
+          } else if (payload.eventType === 'UPDATE') {
+            setKols((prev) =>
+              prev.map((k) =>
+                k.id === (payload.new as Record<string, unknown>).id
+                  ? { ...dbToKol(payload.new as Record<string, unknown>), changeLog: k.changeLog }
+                  : k,
+              ),
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setKols((prev) => prev.filter((k) => k.id !== (payload.old as Record<string, unknown>).id));
+          }
+        },
+      )
+      .subscribe();
+
+    // Realtime: agencies table
+    const agenciesChannel = supabase
+      .channel('agencies-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'agencies' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setAgencies((prev) => [...prev, dbToAgency(payload.new as Record<string, unknown>)]);
+          } else if (payload.eventType === 'UPDATE') {
+            setAgencies((prev) =>
+              prev.map((a) =>
+                a.id === (payload.new as Record<string, unknown>).id
+                  ? dbToAgency(payload.new as Record<string, unknown>)
+                  : a,
+              ),
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setAgencies((prev) => prev.filter((a) => a.id !== (payload.old as Record<string, unknown>).id));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(kolsChannel);
+      supabase.removeChannel(agenciesChannel);
+    };
   }, [fetchData]);
 
   const addKol = useCallback(async (data: { name: string; platforms: Platform[]; agencyId: string; profileUrl?: string; contentDirection?: string; notes?: string; initialStage?: Stage }) => {
@@ -102,9 +144,8 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
       from_stage: null,
       to_stage: stage,
     });
-
-    await fetchData();
-  }, [fetchData]);
+    // Realtime INSERT event will update state
+  }, []);
 
   const updateKolStage = useCallback(async (kolId: string, newStage: Stage, note?: string) => {
     const currentKol = kols.find((k) => k.id === kolId);
@@ -123,12 +164,10 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
       to_stage: newStage,
       note: note || null,
     });
-
-    await fetchData();
-  }, [kols, fetchData]);
+    // Realtime UPDATE event will update state
+  }, [kols]);
 
   const updateKolField = useCallback(async (kolId: string, updates: Partial<KOL>) => {
-    // Map frontend field names to DB column names
     const dbUpdates: Record<string, unknown> = {};
     if (updates.scriptVersion !== undefined) dbUpdates.script_version = updates.scriptVersion;
     if (updates.scriptComplete !== undefined) dbUpdates.script_complete = updates.scriptComplete;
@@ -142,16 +181,16 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
 
     if (Object.keys(dbUpdates).length > 0) {
       await supabase.from('kols').update(dbUpdates).eq('id', kolId);
-      await fetchData();
+      // Realtime UPDATE event will update state
     }
-  }, [fetchData]);
+  }, []);
 
   const toggleTodaysFocus = useCallback(async (kolId: string) => {
     const kol = kols.find((k) => k.id === kolId);
     if (!kol) return;
     await supabase.from('kols').update({ is_todays_focus: !kol.isTodaysFocus }).eq('id', kolId);
-    await fetchData();
-  }, [kols, fetchData]);
+    // Realtime UPDATE event will update state
+  }, [kols]);
 
   const addAgency = useCallback(async (name: string): Promise<Agency> => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -168,16 +207,15 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
       return { id: '', name, token };
     }
 
-    const agency = dbToAgency(inserted as Record<string, unknown>);
-    await fetchData();
-    return agency;
-  }, [fetchData]);
+    // Return the newly created agency directly from the insert result
+    // Realtime INSERT event will also update state
+    return dbToAgency(inserted as Record<string, unknown>);
+  }, []);
 
   const removeAgency = useCallback(async (agencyId: string) => {
-    // KOLs and change_log will cascade delete via FK
     await supabase.from('agencies').delete().eq('id', agencyId);
-    await fetchData();
-  }, [fetchData]);
+    // Realtime DELETE event will update state
+  }, []);
 
   return (
     <StoreContext.Provider value={{ kols, agencies, loading, addKol, updateKolStage, updateKolField, toggleTodaysFocus, addAgency, removeAgency, refresh: fetchData }}>

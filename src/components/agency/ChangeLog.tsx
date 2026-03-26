@@ -3,10 +3,13 @@ import { STAGE_LABELS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 
 interface ChangeLogProps {
-  changeLog: KOL['changeLog'];
+  changeLog?: KOL['changeLog'];
 }
 
 export function ChangeLog({ changeLog }: ChangeLogProps) {
+  if (!changeLog || changeLog.length === 0) {
+    return <p className="text-xs text-muted-foreground">No history yet.</p>;
+  }
   const sorted = [...changeLog].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );

@@ -1,128 +1,390 @@
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+/* ── helpers ─────────────────────────────────────────── */
+const supabaseAdmin = () =>
+  createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+const STAGE_LABELS: Record<string, string> = {
+  writing_idea: "Idea",
+  writing_script: "Script / Project",
+  creating_project: "Project",
+  video_production: "Video Production",
+  pre_publish: "Pre-publish Confirmation",
+  published: "Published",
+};
+
+/* ── tool implementations ────────────────────────────── */
+async function listKols(args: Record<string, unknown>) {
+  const sb = supabaseAdmin();
+  let q = sb
+    .from("kols")
+    .select("id, name, current_stage, platforms, agency_id, is_todays_focus");
+  if (args.agency_id) q = q.eq("agency_id", args.agency_id as string);
+  if (args.stage) q = q.eq("current_stage", args.stage as string);
+  const { data, error } = await q.order("created_at");
+  if (error) return { error: error.message };
+  return (data ?? []).map((k: Record<string, unknown>) => ({
+    ...k,
+    stage_label: STAGE_LABELS[k.current_stage as string] ?? k.current_stage,
+  }));
+}
+
+async function getKolDetails(args: Record<string, unknown>) {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb
+    .from("kols")
+    .select("*")
+    .eq("id", args.kol_id as string)
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "KOL not found" };
+  return { ...data, stage_label: STAGE_LABELS[data.current_stage] ?? data.current_stage };
+}
+
+async function updateKolStage(args: Record<string, unknown>) {
+  const sb = supabaseAdmin();
+  const newStage = args.stage as string;
+  const updates: Record<string, unknown> = {
+    current_stage: newStage,
+    stage_updated_at: new Date().toISOString(),
+  };
+  if (newStage === "pre_publish") updates.is_todays_focus = true;
+  if (newStage === "published") updates.published_at = new Date().toISOString();
+
+  const { data, error } = await sb
+    .from("kols")
+    .update(updates)
+    .eq("id", args.kol_id as string)
+    .select("id, name, current_stage")
+    .single();
+  if (error) return { error: error.message };
+
+  await sb.from("change_log").insert({
+    kol_id: args.kol_id,
+    from_stage: (args._prev_stage as string) ?? null,
+    to_stage: newStage,
+  });
+
+  return { ...data, stage_label: STAGE_LABELS[newStage] ?? newStage };
+}
+
+async function toggleTodaysFocus(args: Record<string, unknown>) {
+  const sb = supabaseAdmin();
+  const focused = (args.focused ?? true) as boolean;
+  const { data, error } = await sb
+    .from("kols")
+    .update({ is_todays_focus: focused })
+    .eq("id", args.kol_id as string)
+    .select("id, name, is_todays_focus")
+    .single();
+  if (error) return { error: error.message };
+  return data;
+}
+
+async function getSummary(_args: Record<string, unknown>) {
+  const sb = supabaseAdmin();
+  const { data: kols } = await sb
+    .from("kols")
+    .select("current_stage, is_todays_focus");
+  const stages: Record<string, number> = {};
+  let focus = 0;
+  (kols ?? []).forEach((k: Record<string, unknown>) => {
+    const s = k.current_stage as string;
+    stages[s] = (stages[s] ?? 0) + 1;
+    if (k.is_todays_focus) focus++;
+  });
+  return { total: kols?.length ?? 0, by_stage: stages, todays_focus: focus };
+}
+
+const TOOLS: Record<
+  string,
+  (a: Record<string, unknown>) => Promise<unknown>
+> = {
+  list_kols: listKols,
+  get_kol_details: getKolDetails,
+  update_kol_stage: updateKolStage,
+  toggle_todays_focus: toggleTodaysFocus,
+  get_summary: getSummary,
+};
+
+/* ── main handler ────────────────────────────────────── */
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
 
   try {
-    const AI_API_TOKEN = Deno.env.get("AI_API_TOKEN_462b20ce438b");
-    if (!AI_API_TOKEN) {
-      throw new Error("AI_API_TOKEN is not configured");
-    }
+    const {
+      messages: userMessages,
+      model = "anthropic/claude-sonnet-4.5",
+      saveToKb,
+      fileName,
+      fileContent,
+    } = await req.json();
 
-    const { messages, model, saveToKb, fileName, fileContent } = await req.json();
-
-    // Set up Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // If saveToKb is true and there's file content, save it to knowledge base
+    /* ---- optional KB save ---- */
     if (saveToKb && fileContent && fileName) {
-      const title = fileName.replace(/\.[^/.]+$/, ""); // Remove extension for title
-      const { error: insertError } = await supabase.from("knowledge_base").insert({
-        title,
-        content: fileContent,
-        file_type: fileName.split(".").pop()?.toLowerCase() || "txt",
-      });
-      if (insertError) {
-        console.error("Failed to save to knowledge base:", insertError);
-      } else {
-        console.log(`Saved "${title}" to knowledge base`);
-      }
+      const sb = supabaseAdmin();
+      await sb
+        .from("knowledge_base")
+        .insert({ title: fileName, content: fileContent });
     }
 
-    // Fetch knowledge base entries for system context
-    const { data: kbEntries } = await supabase
+    /* ---- build system prompt ---- */
+    const sb = supabaseAdmin();
+    const { data: kbRows } = await sb
       .from("knowledge_base")
       .select("title, content")
-      .order("created_at");
+      .order("created_at", { ascending: false });
 
-    let systemPrompt = `You are a helpful AI assistant for a KOL (Key Opinion Leader) marketing campaign management system. You help staff review copy, check publication info, and answer questions about KOL campaigns and brand guidelines.
-
-Always respond in the same language as the user's message. Be concise and professional.`;
-
-    if (saveToKb && fileContent && fileName) {
-      systemPrompt += `\n\nIMPORTANT: The user just uploaded a file named "${fileName}" and it has been automatically saved to the knowledge base. In your response, confirm that the document has been saved and provide a brief summary of the key points in the document.`;
+    let kbContext = "";
+    if (kbRows?.length) {
+      kbContext =
+        "\n\n## Knowledge Base\n" +
+        kbRows
+          .map(
+            (r: { title: string; content: string }) =>
+              `### ${r.title}\n${r.content}`
+          )
+          .join("\n\n");
     }
 
-    if (kbEntries && kbEntries.length > 0) {
-      const kbText = kbEntries
-        .map((entry: { title: string; content: string }) => `## ${entry.title}\n${entry.content}`)
-        .join("\n\n");
-      systemPrompt += `\n\nBelow is the brand's knowledge base. Use this information to answer questions accurately:\n\n${kbText}`;
-    }
+    const systemPrompt = `You are a helpful KOL campaign assistant.${kbContext}
 
-    // Prepend system message
-    const fullMessages = [
-      { role: "user", content: systemPrompt },
-      { role: "assistant", content: "Understood. I have the brand knowledge base loaded and will use it to assist you. How can I help?" },
-      ...messages,
+## Available tools
+You have tools to query and update the KOL database. Use them when the user asks about KOL status, needs to change stages, or wants summaries. Always respond in the same language the user writes in.`;
+
+    const toolDefs = [
+      {
+        name: "list_kols",
+        description:
+          "List KOLs. Optional filters: agency_id (uuid), stage (writing_idea|writing_script|creating_project|video_production|pre_publish|published).",
+        input_schema: {
+          type: "object",
+          properties: {
+            agency_id: { type: "string" },
+            stage: { type: "string" },
+          },
+        },
+      },
+      {
+        name: "get_kol_details",
+        description: "Get full details of a KOL by ID.",
+        input_schema: {
+          type: "object",
+          properties: { kol_id: { type: "string" } },
+          required: ["kol_id"],
+        },
+      },
+      {
+        name: "update_kol_stage",
+        description:
+          "Move a KOL to a new pipeline stage. Provide kol_id, stage, and optionally _prev_stage for logging.",
+        input_schema: {
+          type: "object",
+          properties: {
+            kol_id: { type: "string" },
+            stage: { type: "string" },
+            _prev_stage: { type: "string" },
+          },
+          required: ["kol_id", "stage"],
+        },
+      },
+      {
+        name: "toggle_todays_focus",
+        description: "Set or unset a KOL as today's focus.",
+        input_schema: {
+          type: "object",
+          properties: {
+            kol_id: { type: "string" },
+            focused: { type: "boolean" },
+          },
+          required: ["kol_id"],
+        },
+      },
+      {
+        name: "get_summary",
+        description:
+          "Get a summary of all KOLs: totals, counts per stage, today's focus count.",
+        input_schema: { type: "object", properties: {} },
+      },
     ];
 
-    const response = await fetch("https://api.enter.pro/code/api/v1/ai/messages", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${AI_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: model || "anthropic/claude-sonnet-4.5",
-        messages: fullMessages,
-        stream: true,
-        max_tokens: 4096,
-      }),
-    });
+    /* ---- conversation loop (max 5 tool rounds) ---- */
+    const apiToken = Deno.env.get("AI_API_TOKEN_462b20ce438b")!;
+    const apiBase = "https://api.enter.dev/code/api/v1/ai";
+    const loopMessages = [...userMessages];
+    let finalStream: ReadableStream | null = null;
 
-    if (!response.ok) {
-      const text = await response.text();
-      let errorMessage = "AI service error";
-      let errorCode = "api_error";
+    for (let round = 0; round < 6; round++) {
+      const isLast = round === 5;
+      const res = await fetch(`${apiBase}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 4096,
+          stream: true,
+          system: systemPrompt,
+          messages: loopMessages,
+          ...(isLast ? {} : { tools: toolDefs }),
+        }),
+      });
 
-      const dataMatch = text.match(/data: (.+)/);
-      if (dataMatch) {
-        try {
-          const errorData = JSON.parse(dataMatch[1]);
-          errorMessage = errorData.error?.message || errorMessage;
-          errorCode = errorData.error?.type || errorCode;
-        } catch { /* use defaults */ }
+      if (!res.ok) {
+        const t = await res.text();
+        return new Response(t, {
+          status: res.status,
+          headers: corsHeaders,
+        });
       }
 
-      const errorSSE = `event: error\ndata: ${JSON.stringify({
-        type: "error",
-        error: { type: errorCode, message: errorMessage }
-      })}\n\n`;
+      /* ---- read full response to check for tool_use ---- */
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      const events: Array<{ event: string; data: string }> = [];
 
-      return new Response(errorSSE, {
-        status: response.status,
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" }
-      });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop()!;
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) currentEvent = line.slice(7).trim();
+          else if (line.startsWith("data: "))
+            events.push({ event: currentEvent, data: line.slice(6) });
+        }
+      }
+
+      /* check if any content_block is tool_use */
+      const toolUseBlocks: Array<{
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      }> = [];
+      let currentBlock: {
+        id: string;
+        name: string;
+        inputJson: string;
+      } | null = null;
+
+      for (const ev of events) {
+        if (ev.event === "content_block_start") {
+          const d = JSON.parse(ev.data);
+          if (d.content_block?.type === "tool_use") {
+            currentBlock = {
+              id: d.content_block.id,
+              name: d.content_block.name,
+              inputJson: "",
+            };
+          }
+        } else if (
+          ev.event === "content_block_delta" &&
+          currentBlock
+        ) {
+          const d = JSON.parse(ev.data);
+          if (d.delta?.type === "input_json_delta")
+            currentBlock.inputJson += d.delta.partial_json;
+        } else if (ev.event === "content_block_stop" && currentBlock) {
+          toolUseBlocks.push({
+            id: currentBlock.id,
+            name: currentBlock.name,
+            input: currentBlock.inputJson
+              ? JSON.parse(currentBlock.inputJson)
+              : {},
+          });
+          currentBlock = null;
+        }
+      }
+
+      if (toolUseBlocks.length === 0 || isLast) {
+        /* No tool calls → stream the buffered events to client */
+        const body = events
+          .map((e) => `event: ${e.event}\ndata: ${e.data}\n\n`)
+          .join("");
+        finalStream = new ReadableStream({
+          start(ctrl) {
+            ctrl.enqueue(new TextEncoder().encode(body));
+            ctrl.close();
+          },
+        });
+        break;
+      }
+
+      /* ---- execute tools & continue ---- */
+      // Build assistant message content (text blocks + tool_use blocks)
+      const assistantContent: unknown[] = [];
+      let textBuf = "";
+      let blockIdx = 0;
+      for (const ev of events) {
+        if (ev.event === "content_block_start") {
+          const d = JSON.parse(ev.data);
+          if (d.content_block?.type === "text") textBuf = d.content_block.text ?? "";
+          blockIdx = d.index ?? blockIdx;
+        } else if (ev.event === "content_block_delta") {
+          const d = JSON.parse(ev.data);
+          if (d.delta?.type === "text_delta") textBuf += d.delta.text;
+        } else if (ev.event === "content_block_stop") {
+          if (textBuf) assistantContent.push({ type: "text", text: textBuf });
+          textBuf = "";
+        }
+      }
+      for (const tb of toolUseBlocks) {
+        assistantContent.push({
+          type: "tool_use",
+          id: tb.id,
+          name: tb.name,
+          input: tb.input,
+        });
+      }
+      loopMessages.push({ role: "assistant", content: assistantContent });
+
+      const toolResults: unknown[] = [];
+      for (const tb of toolUseBlocks) {
+        const fn = TOOLS[tb.name];
+        let result: unknown = { error: "unknown tool" };
+        if (fn) {
+          try {
+            result = await fn(tb.input);
+          } catch (e) {
+            result = { error: String(e) };
+          }
+        }
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: tb.id,
+          content: JSON.stringify(result),
+        });
+      }
+      loopMessages.push({ role: "user", content: toolResults });
     }
 
-    return new Response(response.body, {
+    return new Response(finalStream!, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
       },
     });
-  } catch (error) {
-    const errorSSE = `event: error\ndata: ${JSON.stringify({
-      type: "error",
-      error: { type: "api_error", message: error.message }
-    })}\n\n`;
-
-    return new Response(errorSSE, {
+  } catch (e) {
+    console.error("ai-chat error:", e);
+    return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

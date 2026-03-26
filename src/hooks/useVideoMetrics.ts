@@ -25,10 +25,19 @@ export function useVideoMetrics(publishedKols: KOL[]) {
   const [metrics, setMetrics] = useState<VideoMetric[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchMetrics = useCallback(async () => {
+  // Stable string key to avoid re-fetching on every render due to array reference changes
+  const kolIdsKey = useMemo(() => publishedKols.map((k) => k.id).join(','), [publishedKols]);
+
+  const fetchMetrics = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) {
+      setMetrics([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from('video_metrics')
       .select('*')
+      .in('kol_id', ids)
       .order('recorded_at', { ascending: true });
 
     if (!error && data) {
@@ -38,8 +47,8 @@ export function useVideoMetrics(publishedKols: KOL[]) {
   }, []);
 
   useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
+    fetchMetrics(kolIdsKey ? kolIdsKey.split(',') : []);
+  }, [kolIdsKey, fetchMetrics]);
 
   const kolSummaries = useMemo((): KolMetricSummary[] => {
     return publishedKols.map((kol) => {
@@ -149,5 +158,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     [metrics],
   );
 
-  return { metrics, kolSummaries, aggregateTotals, trendData, sparklineData, loading, refresh: fetchMetrics };
+  const refresh = useCallback(() => fetchMetrics(kolIdsKey ? kolIdsKey.split(',') : []), [fetchMetrics, kolIdsKey]);
+
+  return { metrics, kolSummaries, aggregateTotals, trendData, sparklineData, loading, refresh };
 }
