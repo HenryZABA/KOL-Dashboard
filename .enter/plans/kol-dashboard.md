@@ -1,22 +1,14 @@
-# Plan: Fix duplicate record aggregation bug in metrics
+# Plan: Enable Realtime for kols and agencies tables
 
 ## Context
-When multiple metric records exist for the same KOL + platform on the same day, the `kolSummaries` deltas and `sparklineData` incorrectly SUM all records instead of keeping only the latest one. This causes wildly incorrect delta percentages (e.g., +200% instead of +0.01%).
-
-## Root Cause
-`dayMap` in both `kolSummaries` and `sparklineData` does `+=` for all records on the same day, but the data contains cumulative snapshots (not incremental), so duplicates get double/triple counted.
+The dismiss button on Today's Focus cards updates the database but the UI doesn't refresh because the `kols` table is not part of the `supabase_realtime` publication. The store relies on Realtime UPDATE events to update local state.
 
 ## Fix
+Run migration: `ALTER PUBLICATION supabase_realtime ADD TABLE kols, agencies;`
 
-### File: `src/hooks/useVideoMetrics.ts`
-
-1. **`kolSummaries` dayMap**: Change from sum-all to deduplicate per `day + platform`, keeping only the latest `recorded_at` per combo, then sum across platforms per day.
-
-2. **`sparklineData` dayMap**: Same fix — deduplicate per `day + platform` before summing across platforms.
-
-Both should match the existing `trendData` deduplication pattern (lines 137-145).
+## File: No code changes needed
+The kol-store.tsx Realtime subscription code is already correct - it just needs the publication enabled.
 
 ## Verification
-- BeerMoneyForum should show ~0.01% delta (not 200%)
-- Sparkline should show flat trend (views only changed by 10)
-- KOLs with single daily records should be unaffected
+- Click X on a Focus card → card should disappear immediately
+- Changes via API should also reflect in real-time
