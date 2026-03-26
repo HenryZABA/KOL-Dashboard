@@ -181,18 +181,19 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     }
     snapshots.sort((a, b) => a.date.localeCompare(b.date));
 
-    // Step 3: Convert to daily growth rate (%)
-    return snapshots.map((snap, i) => {
-      if (i === 0) return { date: snap.date, views: 0, likes: 0, comments: 0, shares: 0 };
+    // Step 3: Convert to daily growth rate (%) — skip first day
+    const result: typeof snapshots = [];
+    for (let i = 1; i < snapshots.length; i++) {
       const prev = snapshots[i - 1];
-      return {
-        date: snap.date,
-        views: prev.views !== 0 ? parseFloat(((snap.views - prev.views) / prev.views * 100).toFixed(2)) : 0,
-        likes: prev.likes !== 0 ? parseFloat(((snap.likes - prev.likes) / prev.likes * 100).toFixed(2)) : 0,
-        comments: prev.comments !== 0 ? parseFloat(((snap.comments - prev.comments) / prev.comments * 100).toFixed(2)) : 0,
-        shares: prev.shares !== 0 ? parseFloat(((snap.shares - prev.shares) / prev.shares * 100).toFixed(2)) : 0,
-      };
-    });
+      result.push({
+        date: snapshots[i].date,
+        views: prev.views !== 0 ? parseFloat(((snapshots[i].views - prev.views) / prev.views * 100).toFixed(2)) : 0,
+        likes: prev.likes !== 0 ? parseFloat(((snapshots[i].likes - prev.likes) / prev.likes * 100).toFixed(2)) : 0,
+        comments: prev.comments !== 0 ? parseFloat(((snapshots[i].comments - prev.comments) / prev.comments * 100).toFixed(2)) : 0,
+        shares: prev.shares !== 0 ? parseFloat(((snapshots[i].shares - prev.shares) / prev.shares * 100).toFixed(2)) : 0,
+      });
+    }
+    return result;
   }, [metrics]);
 
   // Sparkline data per KOL (daily views growth rate %)
@@ -217,13 +218,14 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       }
       snapshots.sort((a, b) => a.date.localeCompare(b.date));
 
-      // Convert to daily growth rate (%)
-      return snapshots.map((snap, i) => {
-        if (i === 0) return { date: snap.date, views: 0 };
+      // Convert to daily growth rate (%) — skip first day (no previous to compare)
+      const result: { date: string; views: number }[] = [];
+      for (let i = 1; i < snapshots.length; i++) {
         const prev = snapshots[i - 1].views;
-        const pct = prev !== 0 ? ((snap.views - prev) / prev) * 100 : 0;
-        return { date: snap.date, views: parseFloat(pct.toFixed(2)) };
-      });
+        const pct = prev !== 0 ? ((snapshots[i].views - prev) / prev) * 100 : 0;
+        result.push({ date: snapshots[i].date, views: parseFloat(pct.toFixed(2)) });
+      }
+      return result;
     },
     [metrics],
   );

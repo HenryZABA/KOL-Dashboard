@@ -62,7 +62,7 @@ export function KolTickerCard({ summary, sparkline }: KolTickerCardProps) {
       </div>
 
       {/* Sparkline */}
-      {sparkline.length > 1 && (
+      {sparkline.length > 0 && (
         <div className="h-10 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={sparkline}>
