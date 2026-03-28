@@ -101,34 +101,11 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       }
       const days = Array.from(dayMap.entries()).sort(([a], [b]) => a.localeCompare(b));
 
+      // DELTAS: latest day's growth rate (%) — matches sparkline logic
       let deltas = { views: 0, likes: 0, comments: 0, shares: 0 };
-      if (days.length >= 3) {
-        // todayInc = day[-1] - day[-2], yesterdayInc = day[-2] - day[-3]
+      if (days.length >= 2) {
         const todaySnap = days[days.length - 1][1];
         const yesterdaySnap = days[days.length - 2][1];
-        const dayBeforeSnap = days[days.length - 3][1];
-        const todayInc = {
-          views: todaySnap.views - yesterdaySnap.views,
-          likes: todaySnap.likes - yesterdaySnap.likes,
-          comments: todaySnap.comments - yesterdaySnap.comments,
-          shares: todaySnap.shares - yesterdaySnap.shares,
-        };
-        const yesterdayInc = {
-          views: yesterdaySnap.views - dayBeforeSnap.views,
-          likes: yesterdaySnap.likes - dayBeforeSnap.likes,
-          comments: yesterdaySnap.comments - dayBeforeSnap.comments,
-          shares: yesterdaySnap.shares - dayBeforeSnap.shares,
-        };
-        deltas = {
-          views: yesterdayInc.views !== 0 ? ((todayInc.views - yesterdayInc.views) / Math.abs(yesterdayInc.views)) * 100 : 0,
-          likes: yesterdayInc.likes !== 0 ? ((todayInc.likes - yesterdayInc.likes) / Math.abs(yesterdayInc.likes)) * 100 : 0,
-          comments: yesterdayInc.comments !== 0 ? ((todayInc.comments - yesterdayInc.comments) / Math.abs(yesterdayInc.comments)) * 100 : 0,
-          shares: yesterdayInc.shares !== 0 ? ((todayInc.shares - yesterdayInc.shares) / Math.abs(yesterdayInc.shares)) * 100 : 0,
-        };
-      } else if (days.length === 2) {
-        // Only 2 days: show increment as delta (no previous increment to compare)
-        const todaySnap = days[1][1];
-        const yesterdaySnap = days[0][1];
         deltas = {
           views: yesterdaySnap.views !== 0 ? ((todaySnap.views - yesterdaySnap.views) / yesterdaySnap.views) * 100 : 0,
           likes: yesterdaySnap.likes !== 0 ? ((todaySnap.likes - yesterdaySnap.likes) / yesterdaySnap.likes) * 100 : 0,
