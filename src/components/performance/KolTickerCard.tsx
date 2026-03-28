@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, Calendar, Users, UserPlus, CreditCard } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
 import { LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import type { KolConversion } from '@/hooks/useKolConversions';
@@ -141,35 +141,20 @@ export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardP
 
       {/* Conversion funnel row */}
       {conversion && conversion.triggered_users > 0 && (
-        <div className="border-t border-border pt-3 mt-1">
-          <div className="grid grid-cols-5 gap-1.5">
-            <div className="flex flex-col items-center">
-              <Users className="h-3 w-3 text-muted-foreground mb-0.5" />
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Reached</span>
-              <span className="text-xs font-semibold text-card-foreground">{formatNumber(conversion.triggered_users)}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <UserPlus className="h-3 w-3 text-muted-foreground mb-0.5" />
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Signups</span>
-              <span className="text-xs font-semibold text-card-foreground">{formatNumber(conversion.signups)}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Sign CVR</span>
-              <span className="text-xs font-semibold text-[hsl(var(--primary))]">
-                {(conversion.signups / conversion.triggered_users * 100).toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex flex-col items-center">
-              <CreditCard className="h-3 w-3 text-muted-foreground mb-0.5" />
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Paid</span>
-              <span className="text-xs font-semibold text-card-foreground">{formatNumber(conversion.paid_users)}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Paid CVR</span>
-              <span className="text-xs font-semibold text-[hsl(var(--primary))]">
-                {conversion.signups > 0 ? (conversion.paid_users / conversion.signups * 100).toFixed(1) : '0.0'}%
-              </span>
-            </div>
+        <div className="border-t border-border pt-2">
+          <div className="grid grid-cols-5 gap-2">
+            {([
+              { label: 'Reached', value: formatNumber(conversion.triggered_users) },
+              { label: 'Signups', value: formatNumber(conversion.signups) },
+              { label: 'Sign CVR', value: `${(conversion.signups / conversion.triggered_users * 100).toFixed(1)}%`, highlight: true },
+              { label: 'Paid', value: formatNumber(conversion.paid_users) },
+              { label: 'Paid CVR', value: `${conversion.signups > 0 ? (conversion.paid_users / conversion.signups * 100).toFixed(1) : '0.0'}%`, highlight: true },
+            ] as { label: string; value: string; highlight?: boolean }[]).map(({ label, value, highlight }) => (
+              <div key={label} className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
+                <span className={cn('text-xs font-semibold', highlight ? 'text-[hsl(var(--primary))]' : 'text-card-foreground')}>{value}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
