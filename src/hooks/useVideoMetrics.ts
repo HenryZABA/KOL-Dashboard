@@ -200,7 +200,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       for (let i = 1; i < snapshots.length; i++) {
         const prev = snapshots[i - 1].views;
         const pct = prev !== 0 ? ((snapshots[i].views - prev) / prev) * 100 : 0;
-        result.push({ date: snapshots[i].date, views: parseFloat(pct.toFixed(2)) });
+        result.push({ date: snapshots[i].date, views: parseFloat(pct.toFixed(1)) });
       }
       return result;
     },
