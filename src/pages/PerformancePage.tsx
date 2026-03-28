@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useKolStore } from '@/lib/kol-store';
 import { useVideoMetrics } from '@/hooks/useVideoMetrics';
+import { useKolConversions } from '@/hooks/useKolConversions';
 import { KolTickerCard } from '@/components/performance/KolTickerCard';
 import { MarketOverview } from '@/components/performance/MarketOverview';
 import { BarChart3, ArrowUpDown } from 'lucide-react';
@@ -37,6 +38,7 @@ export default function PerformancePage() {
   }, [kols, selectedAgencyId]);
 
   const { kolSummaries, aggregateTotals, trendData, sparklineData, loading } = useVideoMetrics(publishedKols);
+  const { conversionMap } = useKolConversions(publishedKols.map((k) => k.id));
 
   const sortedSummaries = useMemo(() => {
     return [...kolSummaries].sort((a, b) => {
@@ -143,6 +145,7 @@ export default function PerformancePage() {
                 key={summary.kol.id}
                 summary={summary}
                 sparkline={sparklineData(summary.kol.id)}
+                conversion={conversionMap.get(summary.kol.id)}
               />
             ))}
           </div>

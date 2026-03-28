@@ -1,0 +1,16 @@
+
+CREATE TABLE kol_conversions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kol_id uuid NOT NULL REFERENCES kols(id) ON DELETE CASCADE,
+  triggered_users bigint NOT NULL DEFAULT 0,
+  signups bigint NOT NULL DEFAULT 0,
+  paid_users bigint NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(kol_id)
+);
+
+ALTER TABLE kol_conversions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anon can read kol_conversions" ON kol_conversions FOR SELECT USING (true);
+CREATE POLICY "Anon can insert kol_conversions" ON kol_conversions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anon can update kol_conversions" ON kol_conversions FOR UPDATE USING (true) WITH CHECK (true);

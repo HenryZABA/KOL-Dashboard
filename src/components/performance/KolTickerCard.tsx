@@ -1,6 +1,7 @@
-import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Users, UserPlus, CreditCard } from 'lucide-react';
 import { LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
+import type { KolConversion } from '@/hooks/useKolConversions';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -37,9 +38,10 @@ function DeltaBadge({ value }: { value: number }) {
 interface KolTickerCardProps {
   summary: KolMetricSummary;
   sparkline: { date: string; views: number }[];
+  conversion?: KolConversion;
 }
 
-export function KolTickerCard({ summary, sparkline }: KolTickerCardProps) {
+export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardProps) {
   const { kol, totals, deltas } = summary;
   const hasData = totals.views > 0 || totals.likes > 0;
   const overallTrend = deltas.views;
@@ -135,6 +137,41 @@ export function KolTickerCard({ summary, sparkline }: KolTickerCardProps) {
         </div>
       ) : (
         <p className="text-[11px] text-muted-foreground italic">No data yet</p>
+      )}
+
+      {/* Conversion funnel row */}
+      {conversion && conversion.triggered_users > 0 && (
+        <div className="border-t border-border pt-3 mt-1">
+          <div className="grid grid-cols-5 gap-1.5">
+            <div className="flex flex-col items-center">
+              <Users className="h-3 w-3 text-muted-foreground mb-0.5" />
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Reached</span>
+              <span className="text-xs font-semibold text-card-foreground">{formatNumber(conversion.triggered_users)}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <UserPlus className="h-3 w-3 text-muted-foreground mb-0.5" />
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Signups</span>
+              <span className="text-xs font-semibold text-card-foreground">{formatNumber(conversion.signups)}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Sign CVR</span>
+              <span className="text-xs font-semibold text-[hsl(var(--primary))]">
+                {(conversion.signups / conversion.triggered_users * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex flex-col items-center">
+              <CreditCard className="h-3 w-3 text-muted-foreground mb-0.5" />
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Paid</span>
+              <span className="text-xs font-semibold text-card-foreground">{formatNumber(conversion.paid_users)}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Paid CVR</span>
+              <span className="text-xs font-semibold text-[hsl(var(--primary))]">
+                {conversion.signups > 0 ? (conversion.paid_users / conversion.signups * 100).toFixed(1) : '0.0'}%
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
