@@ -2,7 +2,7 @@ import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
 import { LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import { cn } from '@/lib/utils';
-import { Area, AreaChart, ResponsiveContainer } from 'recharts';
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -80,6 +80,22 @@ export function KolTickerCard({ summary, sparkline }: KolTickerCardProps) {
                   />
                 </linearGradient>
               </defs>
+              <Tooltip
+                cursor={false}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.[0]) return null;
+                  const d = payload[0].payload as { date: string; views: number };
+                  const v = d.views;
+                  return (
+                    <div className="rounded-md border bg-popover px-2 py-1 text-[10px] text-popover-foreground shadow-sm">
+                      <div className="font-medium">{d.date}</div>
+                      <div className={cn(v > 0 ? 'text-[hsl(var(--metric-up))]' : v < 0 ? 'text-[hsl(var(--metric-down))]' : 'text-muted-foreground')}>
+                        {v > 0 ? '+' : ''}{v.toFixed(1)}%
+                      </div>
+                    </div>
+                  );
+                }}
+              />
               <Area
                 type="monotone"
                 dataKey="views"
@@ -87,6 +103,7 @@ export function KolTickerCard({ summary, sparkline }: KolTickerCardProps) {
                 strokeWidth={1.5}
                 fill={`url(#spark-${kol.id})`}
                 dot={false}
+                activeDot={{ r: 3, strokeWidth: 0, fill: overallTrend >= 0 ? 'hsl(var(--metric-up))' : 'hsl(var(--metric-down))' }}
                 isAnimationActive={false}
               />
             </AreaChart>
