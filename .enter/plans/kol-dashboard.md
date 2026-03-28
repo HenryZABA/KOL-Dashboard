@@ -1,14 +1,35 @@
-# Plan: Enable Realtime for kols and agencies tables
+# UTM/Mixpanel Conversion Data for KOL Cards
 
 ## Context
-The dismiss button on Today's Focus cards updates the database but the UI doesn't refresh because the `kols` table is not part of the `supabase_realtime` publication. The store relies on Realtime UPDATE events to update local state.
+Add a new row below each KOL performance card showing conversion funnel data from UTM/Mixpanel: triggered users, signups, paid users, signup conversion rate, paid conversion rate.
 
-## Fix
-Run migration: `ALTER PUBLICATION supabase_realtime ADD TABLE kols, agencies;`
+## Database
+New table `kol_conversions`:
+- `id` uuid PK
+- `kol_id` uuid FK → kols.id, UNIQUE (one record per KOL)
+- `triggered_users` bigint (触发用户数)
+- `signups` bigint (注册数)
+- `paid_users` bigint (付费数)
+- `updated_at` timestamptz
+- RLS: anon can read + upsert (for external API)
 
-## File: No code changes needed
-The kol-store.tsx Realtime subscription code is already correct - it just needs the publication enabled.
+## Frontend
+1. **`src/hooks/useKolConversions.ts`** — fetch all kol_conversions, return Map<kol_id, data>
+2. **`KolTickerCard.tsx`** — add conversion row below existing metrics:
+   - Triggered Users | Signups | Signup CVR | Paid CVR | Paid Users
+   - CVR = computed: signup_cvr = signups/triggered_users, paid_cvr = paid_users/signups
 
-## Verification
-- Click X on a Focus card → card should disappear immediately
-- Changes via API should also reflect in real-time
+## Files to modify
+- New migration (supabase_migration)
+- `src/hooks/useKolConversions.ts` (new)
+- `src/components/performance/KolTickerCard.tsx` (add conversion row)
+- Parent component passing conversion data to KolTickerCard
+
+## API Field Reference (for external agent)
+| Display | DB column | Type |
+|---------|-----------|------|
+| 触发用户数 | `triggered_users` | bigint |
+| 注册数 | `signups` | bigint |
+| 付费数 | `paid_users` | bigint |
+
+Table: `kol_conversions`, upsert on `kol_id`.
