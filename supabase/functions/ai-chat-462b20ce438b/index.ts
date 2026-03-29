@@ -439,7 +439,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const agencyModeNote = agencyId
-      ? "\n\n## Agency Mode\nYou are operating in agency mode. You can ONLY access KOLs belonging to your agency. Do not attempt to access or discuss other agencies' KOLs. You also have your own knowledge base - documents uploaded by your agency are available to you alongside brand-level reference materials."
+      ? "\n\n## Agency Mode\nYou are operating in agency mode. You can ONLY access KOLs belonging to your agency. Do not attempt to access or discuss other agencies' KOLs. You also have your own knowledge base - documents uploaded by your agency are available to you alongside brand-level reference materials.\n\nUsers can upload documents to your agency's private knowledge base using the file upload button (paperclip icon) in the chat. Uploaded files are automatically chunked and indexed for keyword-based retrieval. You can remind users of this capability when relevant."
       : "";
 
     const systemPrompt = `You are a helpful KOL campaign assistant.${kbContext}
