@@ -137,16 +137,24 @@ async function searchKb(
       .is("source_doc_id", null)
       .order("created_at", { ascending: false })
       .limit(1);
-    if (agencyId) q = q.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+    if (agencyId) {
+      q = q.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+    } else {
+      q = q.is("agency_id", null);
+    }
     const { data } = await q;
     return data ?? [];
   }
 
-  // Fetch docs: brand mode = all; agency mode = own + brand (agency_id is null)
+  // Fetch docs: brand mode = brand-only (agency_id is null); agency mode = own + brand
   let q = sb
     .from("knowledge_base")
     .select("title, content, source_doc_id, chunk_index, agency_id");
-  if (agencyId) q = q.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+  if (agencyId) {
+    q = q.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+  } else {
+    q = q.is("agency_id", null);
+  }
   const { data: allDocs } = await q;
 
   if (!allDocs?.length) return [];
@@ -179,7 +187,11 @@ async function searchKb(
       .is("source_doc_id", null)
       .order("created_at", { ascending: false })
       .limit(1);
-    if (agencyId) q2 = q2.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+    if (agencyId) {
+      q2 = q2.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+    } else {
+      q2 = q2.is("agency_id", null);
+    }
     const { data } = await q2;
     return data ?? [];
   }
