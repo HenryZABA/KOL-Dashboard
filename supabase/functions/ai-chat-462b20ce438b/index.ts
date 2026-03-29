@@ -187,10 +187,15 @@ async function searchKb(
 /* ── tool implementations ────────────────────────────── */
 async function listKols(args: Record<string, unknown>) {
   const sb = supabaseAdmin();
+  const scopeAgency = args._scope_agency_id as string | undefined;
   let q = sb
     .from("kols")
     .select("id, name, current_stage, platforms, agency_id, is_todays_focus");
-  if (args.agency_id) q = q.eq("agency_id", args.agency_id as string);
+  if (scopeAgency) {
+    q = q.eq("agency_id", scopeAgency);
+  } else if (args.agency_id) {
+    q = q.eq("agency_id", args.agency_id as string);
+  }
   if (args.stage) q = q.eq("current_stage", args.stage as string);
   const { data, error } = await q.order("created_at");
   if (error) return { error: error.message };
@@ -202,11 +207,10 @@ async function listKols(args: Record<string, unknown>) {
 
 async function getKolDetails(args: Record<string, unknown>) {
   const sb = supabaseAdmin();
-  const { data, error } = await sb
-    .from("kols")
-    .select("*")
-    .eq("id", args.kol_id as string)
-    .maybeSingle();
+  const scopeAgency = args._scope_agency_id as string | undefined;
+  let q = sb.from("kols").select("*").eq("id", args.kol_id as string);
+  if (scopeAgency) q = q.eq("agency_id", scopeAgency);
+  const { data, error } = await q.maybeSingle();
   if (error) return { error: error.message };
   if (!data) return { error: "KOL not found" };
   return {
@@ -217,7 +221,14 @@ async function getKolDetails(args: Record<string, unknown>) {
 
 async function updateKolStage(args: Record<string, unknown>) {
   const sb = supabaseAdmin();
+  const scopeAgency = args._scope_agency_id as string | undefined;
   const newStage = args.stage as string;
+
+  if (scopeAgency) {
+    const { data: kol } = await sb.from("kols").select("agency_id").eq("id", args.kol_id as string).maybeSingle();
+    if (!kol || kol.agency_id !== scopeAgency) return { error: "KOL not found" };
+  }
+
   const updates: Record<string, unknown> = {
     current_stage: newStage,
     stage_updated_at: new Date().toISOString(),
@@ -244,7 +255,14 @@ async function updateKolStage(args: Record<string, unknown>) {
 
 async function toggleTodaysFocus(args: Record<string, unknown>) {
   const sb = supabaseAdmin();
+  const scopeAgency = args._scope_agency_id as string | undefined;
   const focused = (args.focused ?? true) as boolean;
+
+  if (scopeAgency) {
+    const { data: kol } = await sb.from("kols").select("agency_id").eq("id", args.kol_id as string).maybeSingle();
+    if (!kol || kol.agency_id !== scopeAgency) return { error: "KOL not found" };
+  }
+
   const { data, error } = await sb
     .from("kols")
     .update({ is_todays_focus: focused })
@@ -255,11 +273,12 @@ async function toggleTodaysFocus(args: Record<string, unknown>) {
   return data;
 }
 
-async function getSummary() {
+async function getSummary(args: Record<string, unknown>) {
   const sb = supabaseAdmin();
-  const { data: kols } = await sb
-    .from("kols")
-    .select("current_stage, is_todays_focus");
+  const scopeAgency = args._scope_agency_id as string | undefined;
+  let q = sb.from("kols").select("current_stage, is_todays_focus");
+  if (scopeAgency) q = q.eq("agency_id", scopeAgency);
+  const { data: kols } = await q;
   const stages: Record<string, number> = {};
   let focus = 0;
   (kols ?? []).forEach((k: Record<string, unknown>) => {
@@ -349,6 +368,7 @@ Deno.serve(async (req: Request) => {
       saveToKb,
       fileName,
       fileContent,
+      agencyId,
     } = await req.json();
 
     /* ---- optional KB save with chunking ---- */
@@ -408,12 +428,16 @@ Deno.serve(async (req: Request) => {
           .join("\n\n");
     }
 
+    const agencyModeNote = agencyId
+      ? "\n\n## Agency Mode\nYou are operating in agency mode. You can ONLY access KOLs belonging to your agency. Do not attempt to access or discuss other agencies' KOLs."
+      : "";
+
     const systemPrompt = `You are a helpful KOL campaign assistant.${kbContext}
 
 ## Your architecture
 - Knowledge base retrieval: keyword-based search (not full-text dump). User messages are tokenized into keywords, matched against document chunks by relevance score, and only the top 5 most relevant chunks are loaded into context.
 - Long documents are automatically split into ~800-character chunks at paragraph/sentence boundaries for more precise retrieval.
-- You have tool-calling capabilities to query and update the KOL database in real time.
+- You have tool-calling capabilities to query and update the KOL database in real time.${agencyModeNote}
 
 ## Available tools
 You have tools to query and update the KOL database. Use them when the user asks about KOL status, needs to change stages, or wants summaries. Always respond in the same language the user writes in.`;
@@ -516,7 +540,11 @@ You have tools to query and update the KOL database. Use them when the user asks
               let result: unknown = { error: "unknown tool" };
               if (fn) {
                 try {
-                  result = await fn(tb.input);
+                  // Inject agency scope into tool args for data isolation
+                  const scopedInput = agencyId
+                    ? { ...tb.input, _scope_agency_id: agencyId }
+                    : tb.input;
+                  result = await fn(scopedInput);
                 } catch (e) {
                   result = { error: String(e) };
                 }

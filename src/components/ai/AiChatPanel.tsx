@@ -31,6 +31,8 @@ interface AiChatPanelProps {
   emptyDescription?: string;
   /** Callback when a file is saved to KB */
   onFileSaved?: () => void;
+  /** Agency ID to restrict AI queries to this agency's data */
+  agencyId?: string;
 }
 
 const ALLOWED_EXTENSIONS = ['txt', 'md', 'csv', 'json', 'html', 'xml', 'log'];
@@ -40,6 +42,7 @@ export function AiChatPanel({
   heightClass = 'h-[calc(100vh-73px)]',
   emptyDescription = 'Ask me to review copy, check publication details, or answer questions about brand guidelines and KOL campaigns.',
   onFileSaved,
+  agencyId,
 }: AiChatPanelProps) {
   const { messages, isLoading, error, sendMessage, cancel, clearChat } = useAiChat();
   const [input, setInput] = useState('');
@@ -83,6 +86,7 @@ export function AiChatPanel({
         fileContent: attachedFile.content,
         fileName: attachedFile.name,
         saveToKb,
+        agencyId,
       });
       setAttachedFile(null);
       if (saveToKb && onFileSaved) {
@@ -90,7 +94,7 @@ export function AiChatPanel({
         setTimeout(onFileSaved, 2000);
       }
     } else {
-      sendMessage(message);
+      sendMessage(message, agencyId ? { agencyId } : undefined);
     }
   };
 

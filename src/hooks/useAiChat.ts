@@ -47,6 +47,7 @@ export function useAiChat() {
         fileContent?: string;
         fileName?: string;
         saveToKb?: boolean;
+        agencyId?: string;
       },
     ) => {
       abortRef.current = new AbortController();
@@ -89,6 +90,7 @@ export function useAiChat() {
                 { role: 'user', content: aiContent },
               ],
               model: 'anthropic/claude-sonnet-4.5',
+              ...(options?.agencyId ? { agencyId: options.agencyId } : {}),
               ...(options?.saveToKb && options?.fileContent
                 ? {
                     saveToKb: true,
