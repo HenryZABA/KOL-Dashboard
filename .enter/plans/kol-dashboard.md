@@ -1,43 +1,39 @@
-# Plan: Knowledge Base Chunking
+# Plan: Agency AI 数据隔离
 
 ## Context
-Currently the knowledge base stores documents as single records. Long documents waste tokens when loaded into AI context. We need to split documents into chunks for more precise keyword retrieval, and update the frontend to handle grouped display and cascading deletion.
+Agency 端 AI 助手复用了和 Brand 端相同的 edge function，没有传递 agency 身份。Agency 用户可以通过 AI 查到所有 KOL 数据，存在数据泄露风险。
 
-## Changes
+## 方案
+在 Agency 端 AI 调用链中传入 `agencyId`，edge function 收到后：
+1. 强制所有 tool 调用按 `agency_id` 过滤
+2. System prompt 声明 agency 身份并限制只能访问自己的 KOL
+3. 禁用 `get_summary` 工具（跨 agency 汇总数据）
 
-### 1. Database Migration
-- Add `source_doc_id uuid` and `chunk_index int` columns to `knowledge_base`
-- `source_doc_id` is nullable (NULL = legacy single doc or parent doc, non-NULL = chunk belonging to parent)
-- Add DELETE RLS policy for authenticated users (currently only have SELECT + ALL for authenticated)
+### 改动文件
 
-### 2. Edge Function: ai-chat (KB save path)
-**File:** `supabase/functions/ai-chat-462b20ce438b/index.ts`
-- When `saveToKb` is true, chunk the `fileContent`:
-  1. Split by `\n\n` (double newline / paragraph breaks)
-  2. If a paragraph > 800 chars, sub-split by sentence boundaries (。.！!？?\n)
-  3. Merge consecutive small chunks (< 200 chars) to avoid fragments
-  4. Insert parent doc (title, empty content, source_doc_id = own id)
-  5. Insert each chunk with `source_doc_id` = parent id, `chunk_index` = sequential
+#### 1. `src/components/ai/AiChatPanel.tsx`
+- Props 新增 `agencyId?: string`
+- 传给 `useAiChat` 的 `sendMessage`
 
-### 3. Edge Function: ai-chat (KB retrieval)
-- `searchKb()` already works at row level — chunks are individual rows, so keyword matching automatically works at chunk granularity
-- Increase topN from 3 to 5 for chunk-level retrieval (chunks are smaller)
+#### 2. `src/hooks/useAiChat.ts`
+- `sendMessage` 接收可选的 `agencyId` 参数
+- 在 request body 中传 `agencyId` 给 edge function
 
-### 4. Frontend: KnowledgeBasePage
-**File:** `src/pages/KnowledgeBasePage.tsx`
-- Fetch entries, group by `source_doc_id` (or self id if null)
-- Display parent docs in list, show chunk count badge (e.g. "6 chunks")
-- Delete button: delete by `source_doc_id` (cascading) — `supabase.from('knowledge_base').delete().or('id.eq.{id},source_doc_id.eq.{id}')`
-- AddEntryDialog: when content is long (> 800 chars), auto-chunk on save instead of saving as single record
+#### 3. `src/components/agency/AgencyAiChat.tsx`
+- 从 URL params 拿 `token` → 查 `agency` → 传 `agencyId` 给 `AiChatPanel`
 
-### 5. Frontend: AddEntryDialog chunking
-- Move chunking logic to a shared utility function
-- On save: if content > 800 chars, chunk and insert parent + chunks
-- If content <= 800 chars, insert as single record (backward compatible)
+#### 4. `supabase/functions/ai-chat-462b20ce438b/index.ts`
+- 解析 request body 中的 `agencyId`
+- 如果有 `agencyId`：
+  - `listKols`: 强制 `.eq("agency_id", agencyId)` 忽略用户传的 `agency_id` 参数
+  - `getKolDetails`: 查到后验证 `agency_id` 匹配，不匹配返回 "KOL not found"
+  - `updateKolStage`: 查到后验证 `agency_id` 匹配
+  - `toggleTodaysFocus`: 查到后验证 `agency_id` 匹配
+  - `getSummary`: 仅统计该 agency 的 KOL
+- System prompt 加入："You are operating in agency mode. You can only access KOLs belonging to your agency."
+- KB 检索不受影响（Enter 品牌信息对所有 agency 可见）
 
-## Verification
-1. Upload a long document (2000+ chars) → verify it's split into multiple chunks in DB
-2. Search with relevant keywords → verify only matching chunks are loaded
-3. Delete a chunked document → verify all chunks are removed
-4. Upload a short document → verify it's stored as single record (no chunking)
-5. Legacy documents (no source_doc_id) still display and work correctly
+## 验证
+1. Agency 端 AI 问"列出所有 KOL"→ 只返回该 agency 的
+2. Agency 端 AI 问其他 agency 的 KOL → 拿不到
+3. Brand 端 AI 不受影响（不传 agencyId）
