@@ -22,6 +22,126 @@ const STAGE_LABELS: Record<string, string> = {
   published: "Published",
 };
 
+/* ── KB keyword search ──────────────────────────────── */
+/** Extract meaningful keywords from text (handles CJK + English) */
+function extractKeywords(text: string): string[] {
+  // Remove common stop words and short tokens
+  const stopWords = new Set([
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "will", "would", "could",
+    "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+    "on", "with", "at", "by", "from", "as", "into", "about", "like",
+    "through", "after", "over", "between", "out", "against", "during",
+    "without", "before", "under", "around", "among", "and", "or", "but",
+    "not", "no", "nor", "so", "yet", "both", "either", "neither", "each",
+    "every", "all", "any", "few", "more", "most", "other", "some", "such",
+    "than", "too", "very", "just", "also", "how", "what", "which", "who",
+    "whom", "this", "that", "these", "those", "it", "its", "my", "your",
+    "his", "her", "our", "their", "me", "him", "them", "we", "you", "i",
+    "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一",
+    "个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有",
+    "看", "好", "自己", "这", "他", "她", "它", "们", "那", "些", "被", "从",
+    "吗", "吧", "呢", "啊", "哦", "嗯", "把", "给", "让", "用", "对", "等",
+    "能", "可以", "什么", "怎么", "为什么", "哪", "谁", "多少",
+  ]);
+
+  const keywords: string[] = [];
+
+  // Extract English words (3+ chars)
+  const engWords = text.toLowerCase().match(/[a-zA-Z]{3,}/g) || [];
+  for (const w of engWords) {
+    if (!stopWords.has(w)) keywords.push(w);
+  }
+
+  // Extract CJK character bigrams (2-char sliding window)
+  const cjkChars = text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || [];
+  // Also extract full CJK segments (consecutive CJK chars)
+  const cjkSegments = text.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
+  for (const seg of cjkSegments) {
+    if (seg.length >= 2 && seg.length <= 6 && !stopWords.has(seg)) {
+      keywords.push(seg);
+    }
+    // Also add bigrams from longer segments
+    if (seg.length > 2) {
+      for (let i = 0; i < seg.length - 1; i++) {
+        const bigram = seg.slice(i, i + 2);
+        if (!stopWords.has(bigram)) keywords.push(bigram);
+      }
+    }
+  }
+
+  // Deduplicate
+  return [...new Set(keywords)];
+}
+
+/** Search KB docs by keyword relevance, return top N */
+async function searchKb(
+  userMessage: string,
+  topN = 3
+): Promise<Array<{ title: string; content: string }>> {
+  const sb = supabaseAdmin();
+  const keywords = extractKeywords(userMessage);
+  console.log("[KB] Extracted keywords:", keywords.slice(0, 20));
+
+  if (keywords.length === 0) {
+    // Fallback: return latest 1 doc
+    const { data } = await sb
+      .from("knowledge_base")
+      .select("title, content")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    return data ?? [];
+  }
+
+  // Fetch all docs (lightweight: just id + title + content)
+  const { data: allDocs } = await sb
+    .from("knowledge_base")
+    .select("title, content");
+
+  if (!allDocs?.length) return [];
+
+  // Score each doc by keyword match count
+  const scored = allDocs.map((doc: { title: string; content: string }) => {
+    const haystack = `${doc.title} ${doc.content}`.toLowerCase();
+    let score = 0;
+    for (const kw of keywords) {
+      const lowerKw = kw.toLowerCase();
+      // Count occurrences
+      let idx = 0;
+      let count = 0;
+      while ((idx = haystack.indexOf(lowerKw, idx)) !== -1) {
+        count++;
+        idx += lowerKw.length;
+      }
+      if (count > 0) score += Math.min(count, 5); // Cap per-keyword contribution
+    }
+    return { ...doc, score };
+  });
+
+  // Sort by score desc, take top N with score > 0
+  const matched = scored
+    .filter((d) => d.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN);
+
+  if (matched.length === 0) {
+    // No matches: return latest 1 doc as fallback
+    const { data } = await sb
+      .from("knowledge_base")
+      .select("title, content")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    return data ?? [];
+  }
+
+  console.log(
+    "[KB] Matched docs:",
+    matched.map((d) => `${d.title} (score: ${d.score})`)
+  );
+
+  return matched.map(({ title, content }) => ({ title, content }));
+}
+
 /* ── tool implementations ────────────────────────────── */
 async function listKols(args: Record<string, unknown>) {
   const sb = supabaseAdmin();
@@ -197,18 +317,28 @@ Deno.serve(async (req: Request) => {
         .insert({ title: fileName, content: fileContent });
     }
 
-    /* ---- build system prompt ---- */
-    const sb = supabaseAdmin();
-    const { data: kbRows } = await sb
-      .from("knowledge_base")
-      .select("title, content")
-      .order("created_at", { ascending: false });
+    /* ---- keyword-based KB retrieval ---- */
+    // Extract the latest user message for keyword search
+    const lastUserMsg = [...userMessages]
+      .reverse()
+      .find((m: { role: string }) => m.role === "user");
+    const searchText =
+      typeof lastUserMsg?.content === "string"
+        ? lastUserMsg.content
+        : Array.isArray(lastUserMsg?.content)
+          ? lastUserMsg.content
+              .filter((b: { type: string }) => b.type === "text")
+              .map((b: { text: string }) => b.text)
+              .join(" ")
+          : "";
+
+    const relevantDocs = await searchKb(searchText);
 
     let kbContext = "";
-    if (kbRows?.length) {
+    if (relevantDocs.length) {
       kbContext =
-        "\n\n## Knowledge Base\n" +
-        kbRows
+        "\n\n## Knowledge Base (relevant excerpts)\n" +
+        relevantDocs
           .map(
             (r: { title: string; content: string }) =>
               `### ${r.title}\n${r.content}`
