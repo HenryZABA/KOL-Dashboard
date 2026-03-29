@@ -1,0 +1,16 @@
+
+ALTER TABLE knowledge_base
+  ADD COLUMN source_doc_id uuid REFERENCES knowledge_base(id) ON DELETE CASCADE,
+  ADD COLUMN chunk_index int;
+
+-- Add delete policy for authenticated users
+CREATE POLICY "Authenticated users can delete knowledge_base"
+  ON knowledge_base FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Add anon delete policy (needed for edge function with service role)
+CREATE POLICY "Anon can delete knowledge_base"
+  ON knowledge_base FOR DELETE USING (true);
+
+-- Add anon insert policy
+CREATE POLICY "Anon can insert knowledge_base"
+  ON knowledge_base FOR INSERT WITH CHECK (true);

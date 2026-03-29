@@ -22,10 +22,68 @@ const STAGE_LABELS: Record<string, string> = {
   published: "Published",
 };
 
+/* ── chunking ────────────────────────────────────────── */
+function chunkText(text: string, maxLen = 800, minLen = 200): string[] {
+  // Split by double newlines (paragraphs)
+  const paragraphs = text.split(/\n{2,}/);
+  const rawChunks: string[] = [];
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.length <= maxLen) {
+      rawChunks.push(trimmed);
+    } else {
+      // Sub-split long paragraphs by sentence boundaries
+      const sentences = trimmed.split(/(?<=[。.！!？?\n])/);
+      let buf = "";
+      for (const s of sentences) {
+        if (buf.length + s.length > maxLen && buf.length > 0) {
+          rawChunks.push(buf.trim());
+          buf = s;
+        } else {
+          buf += s;
+        }
+      }
+      if (buf.trim()) rawChunks.push(buf.trim());
+    }
+  }
+
+  // Merge small consecutive chunks
+  const merged: string[] = [];
+  let acc = "";
+  for (const c of rawChunks) {
+    if (acc.length + c.length + 2 <= maxLen) {
+      acc = acc ? acc + "\n\n" + c : c;
+    } else {
+      if (acc) merged.push(acc);
+      acc = c;
+    }
+  }
+  if (acc) merged.push(acc);
+
+  // If merging produced chunks that are too small, merge further
+  if (merged.length > 1) {
+    const final: string[] = [];
+    let buf2 = "";
+    for (const m of merged) {
+      if (buf2.length < minLen && buf2.length + m.length + 2 <= maxLen) {
+        buf2 = buf2 ? buf2 + "\n\n" + m : m;
+      } else {
+        if (buf2) final.push(buf2);
+        buf2 = m;
+      }
+    }
+    if (buf2) final.push(buf2);
+    return final;
+  }
+
+  return merged;
+}
+
 /* ── KB keyword search ──────────────────────────────── */
-/** Extract meaningful keywords from text (handles CJK + English) */
 function extractKeywords(text: string): string[] {
-  // Remove common stop words and short tokens
   const stopWords = new Set([
     "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
     "have", "has", "had", "do", "does", "did", "will", "would", "could",
@@ -46,22 +104,16 @@ function extractKeywords(text: string): string[] {
   ]);
 
   const keywords: string[] = [];
-
-  // Extract English words (3+ chars)
   const engWords = text.toLowerCase().match(/[a-zA-Z]{3,}/g) || [];
   for (const w of engWords) {
     if (!stopWords.has(w)) keywords.push(w);
   }
 
-  // Extract CJK character bigrams (2-char sliding window)
-  const cjkChars = text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || [];
-  // Also extract full CJK segments (consecutive CJK chars)
   const cjkSegments = text.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
   for (const seg of cjkSegments) {
     if (seg.length >= 2 && seg.length <= 6 && !stopWords.has(seg)) {
       keywords.push(seg);
     }
-    // Also add bigrams from longer segments
     if (seg.length > 2) {
       for (let i = 0; i < seg.length - 1; i++) {
         const bigram = seg.slice(i, i + 2);
@@ -70,65 +122,60 @@ function extractKeywords(text: string): string[] {
     }
   }
 
-  // Deduplicate
   return [...new Set(keywords)];
 }
 
-/** Search KB docs by keyword relevance, return top N */
 async function searchKb(
   userMessage: string,
-  topN = 3
+  topN = 5
 ): Promise<Array<{ title: string; content: string }>> {
   const sb = supabaseAdmin();
   const keywords = extractKeywords(userMessage);
   console.log("[KB] Extracted keywords:", keywords.slice(0, 20));
 
   if (keywords.length === 0) {
-    // Fallback: return latest 1 doc
     const { data } = await sb
       .from("knowledge_base")
       .select("title, content")
+      .is("source_doc_id", null)
       .order("created_at", { ascending: false })
       .limit(1);
     return data ?? [];
   }
 
-  // Fetch all docs (lightweight: just id + title + content)
+  // Fetch all rows (chunks + legacy docs)
   const { data: allDocs } = await sb
     .from("knowledge_base")
-    .select("title, content");
+    .select("title, content, source_doc_id, chunk_index");
 
   if (!allDocs?.length) return [];
 
-  // Score each doc by keyword match count
-  const scored = allDocs.map((doc: { title: string; content: string }) => {
+  const scored = allDocs.map((doc: { title: string; content: string; source_doc_id: string | null; chunk_index: number | null }) => {
     const haystack = `${doc.title} ${doc.content}`.toLowerCase();
     let score = 0;
     for (const kw of keywords) {
       const lowerKw = kw.toLowerCase();
-      // Count occurrences
       let idx = 0;
       let count = 0;
       while ((idx = haystack.indexOf(lowerKw, idx)) !== -1) {
         count++;
         idx += lowerKw.length;
       }
-      if (count > 0) score += Math.min(count, 5); // Cap per-keyword contribution
+      if (count > 0) score += Math.min(count, 5);
     }
     return { ...doc, score };
   });
 
-  // Sort by score desc, take top N with score > 0
   const matched = scored
     .filter((d) => d.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
 
   if (matched.length === 0) {
-    // No matches: return latest 1 doc as fallback
     const { data } = await sb
       .from("knowledge_base")
       .select("title, content")
+      .is("source_doc_id", null)
       .order("created_at", { ascending: false })
       .limit(1);
     return data ?? [];
@@ -136,7 +183,7 @@ async function searchKb(
 
   console.log(
     "[KB] Matched docs:",
-    matched.map((d) => `${d.title} (score: ${d.score})`)
+    matched.map((d) => `${d.title}${d.chunk_index != null ? ` [chunk ${d.chunk_index}]` : ""} (score: ${d.score})`)
   );
 
   return matched.map(({ title, content }) => ({ title, content }));
@@ -309,16 +356,38 @@ Deno.serve(async (req: Request) => {
       fileContent,
     } = await req.json();
 
-    /* ---- optional KB save ---- */
+    /* ---- optional KB save with chunking ---- */
     if (saveToKb && fileContent && fileName) {
       const sb = supabaseAdmin();
-      await sb
-        .from("knowledge_base")
-        .insert({ title: fileName, content: fileContent });
+      const chunks = chunkText(fileContent);
+      console.log(`[KB] Saving "${fileName}" → ${chunks.length} chunk(s)`);
+
+      if (chunks.length <= 1) {
+        // Short doc: single record, no chunking
+        await sb
+          .from("knowledge_base")
+          .insert({ title: fileName, content: fileContent });
+      } else {
+        // Long doc: insert parent + chunks
+        const { data: parent } = await sb
+          .from("knowledge_base")
+          .insert({ title: fileName, content: "" })
+          .select("id")
+          .single();
+
+        if (parent) {
+          const chunkRows = chunks.map((c, i) => ({
+            title: `${fileName} [${i + 1}/${chunks.length}]`,
+            content: c,
+            source_doc_id: parent.id,
+            chunk_index: i,
+          }));
+          await sb.from("knowledge_base").insert(chunkRows);
+        }
+      }
     }
 
     /* ---- keyword-based KB retrieval ---- */
-    // Extract the latest user message for keyword search
     const lastUserMsg = [...userMessages]
       .reverse()
       .find((m: { role: string }) => m.role === "user");
@@ -406,7 +475,6 @@ You have tools to query and update the KOL database. Use them when the user asks
             const body = await res.json();
             console.log(`[round ${round}] stop_reason:`, body.stop_reason);
 
-            /* Extract text and tool_use blocks from response */
             const textBlocks: string[] = [];
             const toolUseBlocks: Array<{
               id: string;
@@ -426,10 +494,8 @@ You have tools to query and update the KOL database. Use them when the user asks
               }
             }
 
-            /* No tool calls → send text and finish */
             if (toolUseBlocks.length === 0 || isLast) {
               const fullText = textBlocks.join("\n");
-              // Chunk text into pieces for streaming feel
               const CHUNK_SIZE = 15;
               for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
                 send({
@@ -442,8 +508,6 @@ You have tools to query and update the KOL database. Use them when the user asks
               return;
             }
 
-            /* ---- Execute tools ---- */
-            // Add assistant response to conversation
             loopMessages.push({ role: "assistant", content: body.content });
 
             const toolResults: unknown[] = [];
@@ -478,7 +542,6 @@ You have tools to query and update the KOL database. Use them when the user asks
             loopMessages.push({ role: "user", content: toolResults });
           }
 
-          // If we exhaust all rounds
           send({ type: "done" });
           ctrl.close();
         } catch (e) {
