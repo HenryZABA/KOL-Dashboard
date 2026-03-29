@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAiChat, type ChatMessage } from '@/hooks/useAiChat';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -279,8 +280,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               message.isStreaming && 'animate-pulse-subtle',
             )}
           >
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-pre:my-2 prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-table:text-xs prose-th:px-2 prose-th:py-1.5 prose-td:px-2 prose-td:py-1.5 prose-th:bg-background/50 prose-th:font-semibold overflow-x-auto">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
             </div>
             {message.isStreaming && (
               <span className="inline-block w-1 h-3.5 bg-foreground/50 animate-pulse ml-0.5 align-text-bottom" />
