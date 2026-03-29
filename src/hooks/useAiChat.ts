@@ -72,6 +72,8 @@ export function useAiChat() {
         : content;
 
       let accumulatedText = '';
+      let retryCount = 0;
+      const MAX_RETRIES = 2;
 
       try {
         await fetchEventSource(
@@ -100,6 +102,7 @@ export function useAiChat() {
                 : {}),
             }),
             signal: abortRef.current.signal,
+            openWhenHidden: true,
 
             async onopen(response) {
               if (!response.ok) {
@@ -112,6 +115,8 @@ export function useAiChat() {
                 }
                 throw new Error(`Request failed: ${response.status}`);
               }
+              // Reset retry count on successful connection
+              retryCount = 0;
             },
 
             onmessage(event) {
@@ -206,16 +211,32 @@ export function useAiChat() {
             },
 
             onerror(err) {
-              throw err;
+              retryCount++;
+              if (retryCount > MAX_RETRIES) {
+                // Stop retrying after MAX_RETRIES
+                throw err;
+              }
+              // Let fetchEventSource retry automatically
+              console.warn(`[AI Chat] Connection error (attempt ${retryCount}/${MAX_RETRIES}), retrying...`);
             },
           },
         );
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
-          setError(err.message || 'Failed to send message');
+          setError('Connection lost. Please try again.');
         }
       } finally {
         setIsLoading(false);
+        // Ensure streaming state is cleared
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant' && last.isStreaming) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...last, isStreaming: false };
+            return updated;
+          }
+          return prev;
+        });
       }
     },
     [messages],
