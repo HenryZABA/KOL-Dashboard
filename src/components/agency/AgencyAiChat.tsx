@@ -14,9 +14,9 @@ export function AgencyAiChat() {
 
   return (
     <AiChatPanel
-      saveToKb={false}
+      saveToKb={true}
       agencyId={agency?.id}
-      emptyDescription="Ask me to review copy, check publication details, or answer questions about brand guidelines and KOL campaigns. You can also attach text files for analysis."
+      emptyDescription="Ask me to review copy, check publication details, or answer questions about brand guidelines and KOL campaigns. You can also attach text files to build your agency knowledge base."
     />
   );
 }

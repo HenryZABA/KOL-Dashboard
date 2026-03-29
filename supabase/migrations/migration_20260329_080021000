@@ -1,0 +1,9 @@
+
+-- Add agency_id to knowledge_base for agency-specific KB entries
+ALTER TABLE knowledge_base ADD COLUMN agency_id uuid REFERENCES agencies(id) ON DELETE CASCADE;
+
+-- Index for efficient queries
+CREATE INDEX idx_knowledge_base_agency_id ON knowledge_base(agency_id);
+
+-- Allow anon to insert/read/delete (existing policies already cover this)
+-- Update RLS policy to ensure anon can manage all knowledge_base rows

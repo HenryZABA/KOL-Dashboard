@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { BookOpen, Plus, Trash2, FileText, Type, Loader2, Layers } from 'lucide-react';
+import { BookOpen, Plus, Trash2, FileText, Type, Loader2, Layers, Building2 } from 'lucide-react';
 
 interface KBEntry {
   id: string;
@@ -21,6 +21,7 @@ interface KBEntry {
   file_type: string | null;
   source_doc_id: string | null;
   chunk_index: number | null;
+  agency_id: string | null;
   created_at: string;
 }
 
@@ -30,6 +31,8 @@ interface GroupedDoc {
   content: string;
   file_url: string | null;
   file_type: string | null;
+  agency_id: string | null;
+  agencyName: string | null;
   created_at: string;
   chunkCount: number;
 }
@@ -93,15 +96,20 @@ function chunkText(text: string, maxLen = 800, minLen = 200): string[] {
 
 export default function KnowledgeBasePage() {
   const [entries, setEntries] = useState<KBEntry[]>([]);
+  const [agencyMap, setAgencyMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'brand' | 'agency'>('all');
 
   const fetchEntries = useCallback(async () => {
-    const { data } = await supabase
-      .from('knowledge_base')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setEntries((data as KBEntry[]) || []);
+    const [{ data: kbData }, { data: agencyData }] = await Promise.all([
+      supabase.from('knowledge_base').select('*').order('created_at', { ascending: false }),
+      supabase.from('agencies').select('id, name'),
+    ]);
+    setEntries((kbData as KBEntry[]) || []);
+    const map = new Map<string, string>();
+    (agencyData || []).forEach((a: { id: string; name: string }) => map.set(a.id, a.name));
+    setAgencyMap(map);
     setLoading(false);
   }, []);
 
@@ -124,10 +132,21 @@ export default function KnowledgeBasePage() {
       content: p.content,
       file_url: p.file_url,
       file_type: p.file_type,
+      agency_id: p.agency_id,
+      agencyName: p.agency_id ? agencyMap.get(p.agency_id) || 'Unknown Agency' : null,
       created_at: p.created_at,
       chunkCount: chunkMap.get(p.id) || 0,
     }));
   })();
+
+  const filteredDocs = groupedDocs.filter((doc) => {
+    if (filter === 'brand') return !doc.agency_id;
+    if (filter === 'agency') return !!doc.agency_id;
+    return true;
+  });
+
+  const agencyDocCount = groupedDocs.filter((d) => d.agency_id).length;
+  const brandDocCount = groupedDocs.filter((d) => !d.agency_id).length;
 
   const handleDelete = async (id: string) => {
     await supabase.from('knowledge_base').delete().eq('source_doc_id', id);
@@ -158,24 +177,47 @@ export default function KnowledgeBasePage() {
         Long documents are automatically split into chunks for more precise AI retrieval.
       </p>
 
+      {/* Filter tabs */}
+      {agencyDocCount > 0 && (
+        <div className="flex items-center gap-1 text-xs">
+          {(['all', 'brand', 'agency'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+                filter === f
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {f === 'all' && `All (${groupedDocs.length})`}
+              {f === 'brand' && `Brand (${brandDocCount})`}
+              {f === 'agency' && `Agency (${agencyDocCount})`}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
-      ) : groupedDocs.length === 0 ? (
+      ) : filteredDocs.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
           <BookOpen className="h-8 w-8 text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground">No entries yet. Add brand guidelines or reference materials.</p>
         </div>
       ) : (
         <div className="grid gap-3 max-w-3xl">
-          {groupedDocs.map((doc) => (
+          {filteredDocs.map((doc) => (
             <div
               key={doc.id}
               className="flex items-start gap-3 rounded-lg border bg-card p-4 shadow-card"
             >
               <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                {doc.file_url ? (
+                {doc.agency_id ? (
+                  <Building2 className="h-4 w-4 text-primary" />
+                ) : doc.file_url ? (
                   <FileText className="h-4 w-4 text-primary" />
                 ) : doc.chunkCount > 0 ? (
                   <Layers className="h-4 w-4 text-primary" />
@@ -184,11 +226,16 @@ export default function KnowledgeBasePage() {
                 )}
               </div>
               <div className="flex-1 min-w-0 space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-sm font-medium text-foreground">{doc.title}</h3>
                   {doc.chunkCount > 0 && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                       {doc.chunkCount} chunks
+                    </span>
+                  )}
+                  {doc.agencyName && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      {doc.agencyName}
                     </span>
                   )}
                 </div>

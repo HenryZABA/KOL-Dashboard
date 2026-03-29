@@ -123,29 +123,35 @@ function extractKeywords(text: string): string[] {
 
 async function searchKb(
   userMessage: string,
+  agencyId?: string,
   topN = 5
 ): Promise<Array<{ title: string; content: string }>> {
   const sb = supabaseAdmin();
   const keywords = extractKeywords(userMessage);
-  console.log("[KB] Extracted keywords:", keywords.slice(0, 20));
+  console.log("[KB] Extracted keywords:", keywords.slice(0, 20), agencyId ? `(agency: ${agencyId})` : "(brand)");
 
   if (keywords.length === 0) {
-    const { data } = await sb
+    let q = sb
       .from("knowledge_base")
       .select("title, content")
       .is("source_doc_id", null)
       .order("created_at", { ascending: false })
       .limit(1);
+    if (agencyId) q = q.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+    const { data } = await q;
     return data ?? [];
   }
 
-  const { data: allDocs } = await sb
+  // Fetch docs: brand mode = all; agency mode = own + brand (agency_id is null)
+  let q = sb
     .from("knowledge_base")
-    .select("title, content, source_doc_id, chunk_index");
+    .select("title, content, source_doc_id, chunk_index, agency_id");
+  if (agencyId) q = q.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+  const { data: allDocs } = await q;
 
   if (!allDocs?.length) return [];
 
-  const scored = allDocs.map((doc: { title: string; content: string; source_doc_id: string | null; chunk_index: number | null }) => {
+  const scored = allDocs.map((doc: { title: string; content: string; source_doc_id: string | null; chunk_index: number | null; agency_id: string | null }) => {
     const haystack = `${doc.title} ${doc.content}`.toLowerCase();
     let score = 0;
     for (const kw of keywords) {
@@ -167,12 +173,14 @@ async function searchKb(
     .slice(0, topN);
 
   if (matched.length === 0) {
-    const { data } = await sb
+    let q2 = sb
       .from("knowledge_base")
       .select("title, content")
       .is("source_doc_id", null)
       .order("created_at", { ascending: false })
       .limit(1);
+    if (agencyId) q2 = q2.or(`agency_id.eq.${agencyId},agency_id.is.null`);
+    const { data } = await q2;
     return data ?? [];
   }
 
@@ -375,16 +383,17 @@ Deno.serve(async (req: Request) => {
     if (saveToKb && fileContent && fileName) {
       const sb = supabaseAdmin();
       const chunks = chunkText(fileContent);
-      console.log(`[KB] Saving "${fileName}" -> ${chunks.length} chunk(s)`);
+      const kbAgency = agencyId || null; // null = brand KB
+      console.log(`[KB] Saving "${fileName}" -> ${chunks.length} chunk(s), agency: ${kbAgency ?? "brand"}`);
 
       if (chunks.length <= 1) {
         await sb
           .from("knowledge_base")
-          .insert({ title: fileName, content: fileContent });
+          .insert({ title: fileName, content: fileContent, agency_id: kbAgency });
       } else {
         const { data: parent } = await sb
           .from("knowledge_base")
-          .insert({ title: fileName, content: "" })
+          .insert({ title: fileName, content: "", agency_id: kbAgency })
           .select("id")
           .single();
 
@@ -394,6 +403,7 @@ Deno.serve(async (req: Request) => {
             content: c,
             source_doc_id: parent.id,
             chunk_index: i,
+            agency_id: kbAgency,
           }));
           await sb.from("knowledge_base").insert(chunkRows);
         }
@@ -414,7 +424,7 @@ Deno.serve(async (req: Request) => {
               .join(" ")
           : "";
 
-    const relevantDocs = await searchKb(searchText);
+    const relevantDocs = await searchKb(searchText, agencyId);
 
     let kbContext = "";
     if (relevantDocs.length) {
@@ -429,7 +439,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const agencyModeNote = agencyId
-      ? "\n\n## Agency Mode\nYou are operating in agency mode. You can ONLY access KOLs belonging to your agency. Do not attempt to access or discuss other agencies' KOLs."
+      ? "\n\n## Agency Mode\nYou are operating in agency mode. You can ONLY access KOLs belonging to your agency. Do not attempt to access or discuss other agencies' KOLs. You also have your own knowledge base - documents uploaded by your agency are available to you alongside brand-level reference materials."
       : "";
 
     const systemPrompt = `You are a helpful KOL campaign assistant.${kbContext}
