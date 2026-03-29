@@ -24,7 +24,6 @@ const STAGE_LABELS: Record<string, string> = {
 
 /* ── chunking ────────────────────────────────────────── */
 function chunkText(text: string, maxLen = 800, minLen = 200): string[] {
-  // Split by double newlines (paragraphs)
   const paragraphs = text.split(/\n{2,}/);
   const rawChunks: string[] = [];
 
@@ -35,7 +34,6 @@ function chunkText(text: string, maxLen = 800, minLen = 200): string[] {
     if (trimmed.length <= maxLen) {
       rawChunks.push(trimmed);
     } else {
-      // Sub-split long paragraphs by sentence boundaries
       const sentences = trimmed.split(/(?<=[。.！!？?\n])/);
       let buf = "";
       for (const s of sentences) {
@@ -50,7 +48,6 @@ function chunkText(text: string, maxLen = 800, minLen = 200): string[] {
     }
   }
 
-  // Merge small consecutive chunks
   const merged: string[] = [];
   let acc = "";
   for (const c of rawChunks) {
@@ -63,7 +60,6 @@ function chunkText(text: string, maxLen = 800, minLen = 200): string[] {
   }
   if (acc) merged.push(acc);
 
-  // If merging produced chunks that are too small, merge further
   if (merged.length > 1) {
     const final: string[] = [];
     let buf2 = "";
@@ -96,11 +92,11 @@ function extractKeywords(text: string): string[] {
     "than", "too", "very", "just", "also", "how", "what", "which", "who",
     "whom", "this", "that", "these", "those", "it", "its", "my", "your",
     "his", "her", "our", "their", "me", "him", "them", "we", "you", "i",
-    "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一",
-    "个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有",
-    "看", "好", "自己", "这", "他", "她", "它", "们", "那", "些", "被", "从",
-    "吗", "吧", "呢", "啊", "哦", "嗯", "把", "给", "让", "用", "对", "等",
-    "能", "可以", "什么", "怎么", "为什么", "哪", "谁", "多少",
+    "\u7684", "\u4e86", "\u5728", "\u662f", "\u6211", "\u6709", "\u548c", "\u5c31", "\u4e0d", "\u4eba", "\u90fd", "\u4e00",
+    "\u4e2a", "\u4e0a", "\u4e5f", "\u5f88", "\u5230", "\u8bf4", "\u8981", "\u53bb", "\u4f60", "\u4f1a", "\u7740", "\u6ca1\u6709",
+    "\u770b", "\u597d", "\u81ea\u5df1", "\u8fd9", "\u4ed6", "\u5979", "\u5b83", "\u4eec", "\u90a3", "\u4e9b", "\u88ab", "\u4ece",
+    "\u5417", "\u5427", "\u5462", "\u554a", "\u54e6", "\u55ef", "\u628a", "\u7ed9", "\u8ba9", "\u7528", "\u5bf9", "\u7b49",
+    "\u80fd", "\u53ef\u4ee5", "\u4ec0\u4e48", "\u600e\u4e48", "\u4e3a\u4ec0\u4e48", "\u54ea", "\u8c01", "\u591a\u5c11",
   ]);
 
   const keywords: string[] = [];
@@ -143,7 +139,6 @@ async function searchKb(
     return data ?? [];
   }
 
-  // Fetch all rows (chunks + legacy docs)
   const { data: allDocs } = await sb
     .from("knowledge_base")
     .select("title, content, source_doc_id, chunk_index");
@@ -360,15 +355,13 @@ Deno.serve(async (req: Request) => {
     if (saveToKb && fileContent && fileName) {
       const sb = supabaseAdmin();
       const chunks = chunkText(fileContent);
-      console.log(`[KB] Saving "${fileName}" → ${chunks.length} chunk(s)`);
+      console.log(`[KB] Saving "${fileName}" -> ${chunks.length} chunk(s)`);
 
       if (chunks.length <= 1) {
-        // Short doc: single record, no chunking
         await sb
           .from("knowledge_base")
           .insert({ title: fileName, content: fileContent });
       } else {
-        // Long doc: insert parent + chunks
         const { data: parent } = await sb
           .from("knowledge_base")
           .insert({ title: fileName, content: "" })
@@ -416,6 +409,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const systemPrompt = `You are a helpful KOL campaign assistant.${kbContext}
+
+## Your architecture
+- Knowledge base retrieval: keyword-based search (not full-text dump). User messages are tokenized into keywords, matched against document chunks by relevance score, and only the top 5 most relevant chunks are loaded into context.
+- Long documents are automatically split into ~800-character chunks at paragraph/sentence boundaries for more precise retrieval.
+- You have tool-calling capabilities to query and update the KOL database in real time.
 
 ## Available tools
 You have tools to query and update the KOL database. Use them when the user asks about KOL status, needs to change stages, or wants summaries. Always respond in the same language the user writes in.`;
