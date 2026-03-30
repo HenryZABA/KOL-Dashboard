@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
-import { LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
-import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
+import { PlatformIcon } from '@/components/kol/PlatformIcon';
+import type { KolMetricSummary, MetricTotals } from '@/hooks/useVideoMetrics';
 import type { KolConversion } from '@/hooks/useKolConversions';
-import { cn } from '@/lib/utils';
+import type { Platform } from '@/lib/mock-data';
+import { cn, openExternal } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 function formatNumber(n: number): string {
@@ -35,19 +37,66 @@ function DeltaBadge({ value }: { value: number }) {
   );
 }
 
+/** Parse pub_* entries from stageLinks into a platform -> url map */
+function parsePubLinks(stageLinks?: Record<string, string>): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!stageLinks) return map;
+  for (const [key, val] of Object.entries(stageLinks)) {
+    if (key.startsWith('pub_')) {
+      const pipeIdx = val.indexOf('|');
+      if (pipeIdx >= 0) {
+        const platform = val.slice(0, pipeIdx);
+        const url = val.slice(pipeIdx + 1);
+        if (url) map[platform] = url;
+      }
+    }
+  }
+  return map;
+}
+
 interface KolTickerCardProps {
   summary: KolMetricSummary;
   sparkline: { date: string; views: number }[];
+  sparklineByPlatform: (platform: Platform) => { date: string; views: number }[];
   conversion?: KolConversion;
 }
 
-export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardProps) {
-  const { kol, totals, deltas } = summary;
-  const hasData = totals.views > 0 || totals.likes > 0;
-  const overallTrend = deltas.views;
+export function KolTickerCard({ summary, sparkline, sparklineByPlatform, conversion }: KolTickerCardProps) {
+  const { kol, totals, deltas, perPlatform } = summary;
+  const [activePlatform, setActivePlatform] = useState<Platform | null>(null);
+
+  const pubMap = parsePubLinks(kol.stageLinks);
+
+  // Determine which data to display
+  const displayTotals: MetricTotals = activePlatform ? (perPlatform[activePlatform]?.totals ?? totals) : totals;
+  const displayDeltas: MetricTotals = activePlatform ? (perPlatform[activePlatform]?.deltas ?? deltas) : deltas;
+  const displaySparkline = activePlatform ? sparklineByPlatform(activePlatform) : sparkline;
+
+  const hasData = displayTotals.views > 0 || displayTotals.likes > 0;
+  const overallTrend = displayDeltas.views;
+
+  const handlePlatformClick = (p: Platform) => {
+    if (activePlatform === p) {
+      // Second click — open external link
+      const url = pubMap[p];
+      if (url) openExternal(url);
+    } else {
+      // First click — select platform to show its data
+      setActivePlatform(p);
+    }
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Click on card background deselects platform (but not on icons/buttons)
+    if ((e.target as HTMLElement).closest('[data-platform-icon]')) return;
+    if (activePlatform) {
+      setActivePlatform(null);
+    }
+  };
 
   return (
     <div
+      onClick={handleCardClick}
       className={cn(
         'relative flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-card transition-shadow hover:shadow-card-hover',
         overallTrend > 0 && 'border-l-2 border-l-[hsl(var(--metric-up))]',
@@ -60,16 +109,47 @@ export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardP
           <span className="text-sm font-semibold text-card-foreground truncate">{kol.name}</span>
           <DeltaBadge value={overallTrend} />
         </div>
-        <LinkedPlatformIcons platforms={kol.platforms} stageLinks={kol.stageLinks} className="shrink-0" />
+        {/* Platform icons with two-click interaction */}
+        <div className="flex items-center gap-1 shrink-0">
+          {kol.platforms.map((p) => {
+            const isActive = activePlatform === p;
+            const hasLink = !!pubMap[p];
+            return (
+              <button
+                key={p}
+                data-platform-icon
+                onClick={(e) => { e.stopPropagation(); handlePlatformClick(p); }}
+                title={isActive && hasLink ? `Open ${p} link` : `View ${p} data`}
+                className={cn(
+                  'rounded-md p-1 transition-all cursor-pointer',
+                  isActive
+                    ? 'bg-primary/15 ring-1 ring-primary/50 scale-110'
+                    : 'hover:bg-accent',
+                  !hasLink && !isActive && 'opacity-40',
+                )}
+              >
+                <PlatformIcon platform={p} className={cn(isActive && 'scale-105')} />
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {/* Active platform indicator */}
+      {activePlatform && (
+        <div className="flex items-center gap-1.5 text-[10px] text-primary font-medium -mt-1">
+          <span className="capitalize">{activePlatform}</span>
+          {pubMap[activePlatform] && <span className="text-muted-foreground">(click icon again to open link)</span>}
+        </div>
+      )}
+
       {/* Sparkline */}
-      {sparkline.length > 0 && (
+      {displaySparkline.length > 0 && (
         <div className="h-10 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sparkline}>
+            <AreaChart data={displaySparkline}>
               <defs>
-                <linearGradient id={`spark-${kol.id}`} x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id={`spark-${kol.id}-${activePlatform ?? 'all'}`} x1="0" y1="0" x2="0" y2="1">
                   <stop
                     offset="5%"
                     stopColor={overallTrend >= 0 ? 'hsl(var(--metric-up))' : 'hsl(var(--metric-down))'}
@@ -103,7 +183,7 @@ export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardP
                 dataKey="views"
                 stroke={overallTrend >= 0 ? 'hsl(var(--metric-up))' : 'hsl(var(--metric-down))'}
                 strokeWidth={1.5}
-                fill={`url(#spark-${kol.id})`}
+                fill={`url(#spark-${kol.id}-${activePlatform ?? 'all'})`}
                 dot={false}
                 activeDot={{ r: 3, strokeWidth: 0, fill: overallTrend >= 0 ? 'hsl(var(--metric-up))' : 'hsl(var(--metric-down))' }}
                 isAnimationActive={false}
@@ -113,7 +193,7 @@ export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardP
         </div>
       )}
 
-      {/* Published date + Metrics row */}
+      {/* Published date */}
       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
         <Calendar className="h-3 w-3" />
         <span>{kol.publishedAt ? new Date(kol.publishedAt).toLocaleDateString() : 'N/A'}</span>
@@ -130,8 +210,8 @@ export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardP
           ]).map(({ label, key }) => (
             <div key={key} className="flex flex-col">
               <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
-              <span className="text-xs font-semibold text-card-foreground">{formatNumber(totals[key])}</span>
-              <DeltaBadge value={deltas[key]} />
+              <span className="text-xs font-semibold text-card-foreground">{formatNumber(displayTotals[key])}</span>
+              <DeltaBadge value={displayDeltas[key]} />
             </div>
           ))}
         </div>

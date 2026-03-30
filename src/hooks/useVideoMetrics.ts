@@ -13,12 +13,15 @@ export interface VideoMetric {
   recorded_at: string;
 }
 
+export type MetricTotals = { views: number; likes: number; comments: number; shares: number };
+
 export interface KolMetricSummary {
   kol: KOL;
   latest: Record<Platform, VideoMetric | null>;
   previous: Record<Platform, VideoMetric | null>;
-  totals: { views: number; likes: number; comments: number; shares: number };
-  deltas: { views: number; likes: number; comments: number; shares: number };
+  totals: MetricTotals;
+  deltas: MetricTotals;
+  perPlatform: Record<Platform, { totals: MetricTotals; deltas: MetricTotals }>;
 }
 
 export function useVideoMetrics(publishedKols: KOL[]) {
@@ -114,7 +117,39 @@ export function useVideoMetrics(publishedKols: KOL[]) {
         };
       }
 
-      return { kol, latest: latestMap, previous: prevMap, totals, deltas };
+      // Per-platform totals and deltas
+      const perPlatform = {} as Record<Platform, { totals: MetricTotals; deltas: MetricTotals }>;
+      for (const p of kol.platforms) {
+        const l = latestMap[p];
+        const pTotals: MetricTotals = l
+          ? { views: l.views, likes: l.likes, comments: l.comments, shares: l.shares }
+          : { views: 0, likes: 0, comments: 0, shares: 0 };
+
+        // Per-platform daily deltas
+        const platDayMap = new Map<string, VideoMetric>();
+        for (const m of kolMetrics.filter((m) => m.platform === p)) {
+          const day = m.recorded_at.slice(0, 10);
+          const existing = platDayMap.get(day);
+          if (!existing || new Date(m.recorded_at) > new Date(existing.recorded_at)) {
+            platDayMap.set(day, m);
+          }
+        }
+        const platDays = Array.from(platDayMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+        let pDeltas: MetricTotals = { views: 0, likes: 0, comments: 0, shares: 0 };
+        if (platDays.length >= 2) {
+          const cur = platDays[platDays.length - 1][1];
+          const prev = platDays[platDays.length - 2][1];
+          pDeltas = {
+            views: prev.views !== 0 ? ((cur.views - prev.views) / prev.views) * 100 : 0,
+            likes: prev.likes !== 0 ? ((cur.likes - prev.likes) / prev.likes) * 100 : 0,
+            comments: prev.comments !== 0 ? ((cur.comments - prev.comments) / prev.comments) * 100 : 0,
+            shares: prev.shares !== 0 ? ((cur.shares - prev.shares) / prev.shares) * 100 : 0,
+          };
+        }
+        perPlatform[p] = { totals: pTotals, deltas: pDeltas };
+      }
+
+      return { kol, latest: latestMap, previous: prevMap, totals, deltas, perPlatform };
     });
   }, [publishedKols, metrics]);
 
@@ -207,7 +242,34 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     [metrics],
   );
 
+  // Sparkline data per KOL per platform (daily views growth rate %)
+  const sparklineDataByPlatform = useCallback(
+    (kolId: string, platform: Platform): { date: string; views: number }[] => {
+      const platMetrics = metrics.filter((m) => m.kol_id === kolId && m.platform === platform);
+      const dayMap = new Map<string, VideoMetric>();
+      for (const m of platMetrics) {
+        const day = m.recorded_at.slice(0, 10);
+        const existing = dayMap.get(day);
+        if (!existing || new Date(m.recorded_at) > new Date(existing.recorded_at)) {
+          dayMap.set(day, m);
+        }
+      }
+      const snapshots = Array.from(dayMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, m]) => ({ date: day, views: m.views }));
+
+      const result: { date: string; views: number }[] = [];
+      for (let i = 1; i < snapshots.length; i++) {
+        const prev = snapshots[i - 1].views;
+        const pct = prev !== 0 ? ((snapshots[i].views - prev) / prev) * 100 : 0;
+        result.push({ date: snapshots[i].date, views: parseFloat(pct.toFixed(1)) });
+      }
+      return result;
+    },
+    [metrics],
+  );
+
   const refresh = useCallback(() => fetchMetrics(kolIdsKey ? kolIdsKey.split(',') : []), [fetchMetrics, kolIdsKey]);
 
-  return { metrics, kolSummaries, aggregateTotals, trendData, sparklineData, loading, refresh };
+  return { metrics, kolSummaries, aggregateTotals, trendData, sparklineData, sparklineDataByPlatform, loading, refresh };
 }

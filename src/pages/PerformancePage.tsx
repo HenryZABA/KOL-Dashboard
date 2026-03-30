@@ -37,7 +37,7 @@ export default function PerformancePage() {
     });
   }, [kols, selectedAgencyId]);
 
-  const { kolSummaries, aggregateTotals, trendData, sparklineData, loading } = useVideoMetrics(publishedKols);
+  const { kolSummaries, aggregateTotals, trendData, sparklineData, sparklineDataByPlatform, loading } = useVideoMetrics(publishedKols);
   const { conversionMap } = useKolConversions(publishedKols.map((k) => k.id));
 
   const sortedSummaries = useMemo(() => {
@@ -145,6 +145,7 @@ export default function PerformancePage() {
                 key={summary.kol.id}
                 summary={summary}
                 sparkline={sparklineData(summary.kol.id)}
+                sparklineByPlatform={(platform) => sparklineDataByPlatform(summary.kol.id, platform)}
                 conversion={conversionMap.get(summary.kol.id)}
               />
             ))}
