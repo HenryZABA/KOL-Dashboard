@@ -146,9 +146,9 @@ export function KolTickerCard({ summary, sparkline, conversion }: KolTickerCardP
             {([
               { label: 'Reached', value: formatNumber(conversion.triggered_users) },
               { label: 'Signups', value: formatNumber(conversion.signups) },
-              { label: 'Sign CVR', value: `${(conversion.signups / conversion.triggered_users * 100).toFixed(1)}%`, highlight: true },
+              { label: 'Sign R', value: `${(conversion.signups / conversion.triggered_users * 100).toFixed(1)}%`, highlight: true },
               { label: 'Paid', value: formatNumber(conversion.paid_users) },
-              { label: 'Paid CVR', value: `${conversion.signups > 0 ? (conversion.paid_users / conversion.signups * 100).toFixed(1) : '0.0'}%`, highlight: true },
+              { label: 'Paid R', value: `${conversion.signups > 0 ? (conversion.paid_users / conversion.signups * 100).toFixed(1) : '0.0'}%`, highlight: true },
             ] as { label: string; value: string; highlight?: boolean }[]).map(({ label, value, highlight }) => (
               <div key={label} className="flex flex-col">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
