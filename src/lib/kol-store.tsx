@@ -155,7 +155,6 @@ export function KolStoreProvider({ children }: { children: ReactNode }) {
       current_stage: newStage,
       stage_updated_at: new Date().toISOString(),
       ...(newStage === 'pre_publish' ? { is_todays_focus: true } : {}),
-      ...(newStage === 'published' ? { published_at: new Date().toISOString() } : {}),
     }).eq('id', kolId);
 
     await supabase.from('change_log').insert({

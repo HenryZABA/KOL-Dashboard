@@ -254,7 +254,6 @@ async function updateKolStage(args: Record<string, unknown>) {
     stage_updated_at: new Date().toISOString(),
   };
   if (newStage === "pre_publish") updates.is_todays_focus = true;
-  if (newStage === "published") updates.published_at = new Date().toISOString();
 
   const { data, error } = await sb
     .from("kols")
