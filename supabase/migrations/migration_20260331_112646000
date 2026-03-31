@@ -1,0 +1,1 @@
+DELETE FROM kols WHERE id = '92bb7989-622b-48ff-9376-d35f53d8dd5a';
