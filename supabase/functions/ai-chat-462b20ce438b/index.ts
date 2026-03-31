@@ -146,7 +146,6 @@ async function searchKb(
     return data ?? [];
   }
 
-  // Fetch docs: brand mode = brand-only (agency_id is null); agency mode = own + brand
   let q = sb
     .from("knowledge_base")
     .select("title, content, source_doc_id, chunk_index, agency_id");
@@ -292,6 +291,27 @@ async function toggleTodaysFocus(args: Record<string, unknown>) {
   return data;
 }
 
+async function renameKol(args: Record<string, unknown>) {
+  const sb = supabaseAdmin();
+  const scopeAgency = args._scope_agency_id as string | undefined;
+  const newName = args.new_name as string;
+  if (!newName?.trim()) return { error: "new_name is required" };
+
+  if (scopeAgency) {
+    const { data: kol } = await sb.from("kols").select("agency_id").eq("id", args.kol_id as string).maybeSingle();
+    if (!kol || kol.agency_id !== scopeAgency) return { error: "KOL not found" };
+  }
+
+  const { data, error } = await sb
+    .from("kols")
+    .update({ name: newName.trim() })
+    .eq("id", args.kol_id as string)
+    .select("id, name")
+    .single();
+  if (error) return { error: error.message };
+  return data;
+}
+
 async function getSummary(args: Record<string, unknown>) {
   const sb = supabaseAdmin();
   const scopeAgency = args._scope_agency_id as string | undefined;
@@ -317,6 +337,7 @@ const TOOLS: Record<
   update_kol_stage: updateKolStage,
   toggle_todays_focus: toggleTodaysFocus,
   get_summary: getSummary,
+  rename_kol: renameKol,
 };
 
 const TOOL_DEFS = [
@@ -373,6 +394,18 @@ const TOOL_DEFS = [
       "Get a summary of all KOLs: totals, counts per stage, today's focus count.",
     input_schema: { type: "object", properties: {} },
   },
+  {
+    name: "rename_kol",
+    description: "Rename a KOL. Provide kol_id and new_name.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kol_id: { type: "string" },
+        new_name: { type: "string" },
+      },
+      required: ["kol_id", "new_name"],
+    },
+  },
 ];
 
 /* ── main handler ────────────────────────────────────── */
@@ -394,7 +427,7 @@ Deno.serve(async (req: Request) => {
     if (saveToKb && fileContent && fileName) {
       const sb = supabaseAdmin();
       const chunks = chunkText(fileContent);
-      const kbAgency = agencyId || null; // null = brand KB
+      const kbAgency = agencyId || null;
       console.log(`[KB] Saving "${fileName}" -> ${chunks.length} chunk(s), agency: ${kbAgency ?? "brand"}`);
 
       if (chunks.length <= 1) {
@@ -461,7 +494,7 @@ Deno.serve(async (req: Request) => {
 - You have tool-calling capabilities to query and update the KOL database in real time.${agencyModeNote}
 
 ## Available tools
-You have tools to query and update the KOL database. Use them when the user asks about KOL status, needs to change stages, or wants summaries. Always respond in the same language the user writes in.`;
+You have tools to query and update the KOL database, including renaming KOLs. Use them when the user asks about KOL status, needs to change stages, rename KOLs, or wants summaries. Always respond in the same language the user writes in.`;
 
     /* ---- conversation loop (stream: false for reliability) ---- */
     const apiToken = Deno.env.get("AI_API_TOKEN_462b20ce438b")!;
@@ -561,7 +594,6 @@ You have tools to query and update the KOL database. Use them when the user asks
               let result: unknown = { error: "unknown tool" };
               if (fn) {
                 try {
-                  // Inject agency scope into tool args for data isolation
                   const scopedInput = agencyId
                     ? { ...tb.input, _scope_agency_id: agencyId }
                     : tb.input;
