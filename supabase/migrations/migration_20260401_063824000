@@ -1,0 +1,1 @@
+UPDATE kols SET utm_content = 'Ashok' WHERE name ILIKE '%ashok%';
