@@ -4,9 +4,11 @@ import { useVideoMetrics } from '@/hooks/useVideoMetrics';
 import { useKolConversions } from '@/hooks/useKolConversions';
 import { KolTickerCard } from '@/components/performance/KolTickerCard';
 import { MarketOverview } from '@/components/performance/MarketOverview';
-import { BarChart3, ArrowUpDown } from 'lucide-react';
+import { DateTimeline } from '@/components/performance/DateTimeline';
+import { BarChart3, ArrowUpDown, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+type ViewMode = 'cards' | 'timeline';
 type SortKey = 'name' | 'views' | 'likes' | 'comments' | 'shares';
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -23,6 +25,7 @@ export default function PerformancePage() {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('views');
   const [sortDesc, setSortDesc] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   const activeAgencies = useMemo(() => {
     const agencyIds = new Set(kols.filter((k) => k.currentStage === 'published').map((k) => k.agencyId));
@@ -112,8 +115,32 @@ export default function PerformancePage() {
       {/* Ticker Board */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-foreground">KOL Performance Board</h2>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium text-foreground">KOL Performance Board</h2>
+            {/* View toggle */}
+            <div className="flex items-center bg-muted rounded-md p-0.5 ml-2">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={cn(
+                  'p-1 rounded transition-colors',
+                  viewMode === 'cards' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode('timeline')}
+                className={cn(
+                  'p-1 rounded transition-colors',
+                  viewMode === 'timeline' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          {viewMode === 'cards' && (
+            <div className="flex items-center gap-1.5">
             {SORT_OPTIONS.map(({ key, label }) => (
               <button
                 key={key}
@@ -130,9 +157,12 @@ export default function PerformancePage() {
               </button>
             ))}
           </div>
+          )}
         </div>
 
-        {sortedSummaries.length === 0 ? (
+        {viewMode === 'timeline' ? (
+          <DateTimeline kolSummaries={sortedSummaries} conversionMap={conversionMap} />
+        ) : sortedSummaries.length === 0 ? (
           <div className="flex items-center justify-center rounded-lg border border-dashed py-16">
             <p className="text-sm text-muted-foreground">
               No published KOLs yet. KOLs will appear here after reaching the Published stage.
