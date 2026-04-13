@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Calendar } from 'lucide-react';
 import { PlatformIcon } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary, MetricTotals } from '@/hooks/useVideoMetrics';
-import type { KolConversion } from '@/hooks/useKolConversions';
+import type { KolConversion, KolConversionAgg } from '@/hooks/useKolConversions';
 import type { Platform } from '@/lib/mock-data';
 import { cn, openExternal } from '@/lib/utils';
 
@@ -26,10 +26,11 @@ function parsePubLinks(stageLinks?: Record<string, string>): Record<string, stri
 
 interface DateTimelineProps {
   kolSummaries: KolMetricSummary[];
-  conversionMap: Map<string, KolConversion>;
+  conversionMap: Map<string, KolConversionAgg>;
+  conversionsByKol: Map<string, KolConversion[]>;
 }
 
-export function DateTimeline({ kolSummaries, conversionMap }: DateTimelineProps) {
+export function DateTimeline({ kolSummaries, conversionMap, conversionsByKol }: DateTimelineProps) {
   // Group by published_at date
   const grouped = useMemo(() => {
     const map = new Map<string, KolMetricSummary[]>();
@@ -52,18 +53,19 @@ export function DateTimeline({ kolSummaries, conversionMap }: DateTimelineProps)
   return (
     <div className="space-y-5">
       {grouped.map(([date, entries]) => (
-        <DateGroup key={date} date={date} entries={entries} conversionMap={conversionMap} />
+        <DateGroup key={date} date={date} entries={entries} conversionMap={conversionMap} conversionsByKol={conversionsByKol} />
       ))}
     </div>
   );
 }
 
 function DateGroup({
-  date, entries, conversionMap,
+  date, entries, conversionMap, conversionsByKol,
 }: {
   date: string;
   entries: KolMetricSummary[];
-  conversionMap: Map<string, KolConversion>;
+  conversionMap: Map<string, KolConversionAgg>;
+  conversionsByKol: Map<string, KolConversion[]>;
 }) {
   // Aggregate totals for the date
   const dateTotals = useMemo(() => {
@@ -93,13 +95,13 @@ function DateGroup({
 
       {/* KOL rows */}
       {entries.map((s) => (
-        <TimelineRow key={s.kol.id} summary={s} conversion={conversionMap.get(s.kol.id)} />
+        <TimelineRow key={s.kol.id} summary={s} conversion={conversionMap.get(s.kol.id)} conversions={conversionsByKol.get(s.kol.id)} />
       ))}
     </div>
   );
 }
 
-function TimelineRow({ summary, conversion }: { summary: KolMetricSummary; conversion?: KolConversion }) {
+function TimelineRow({ summary, conversion, conversions }: { summary: KolMetricSummary; conversion?: KolConversionAgg; conversions?: KolConversion[] }) {
   const { kol, totals, perPlatform } = summary;
   const [activePlatform, setActivePlatform] = useState<Platform | null>(null);
   const pubMap = parsePubLinks(kol.stageLinks);
@@ -108,19 +110,28 @@ function TimelineRow({ summary, conversion }: { summary: KolMetricSummary; conve
     ? (perPlatform[activePlatform]?.totals ?? totals)
     : totals;
 
+  // Get conversion data matching active platform (or aggregated if none)
+  const displayConversion = useMemo(() => {
+    if (!activePlatform) return conversion;
+    if (!conversions) return undefined;
+    const match = conversions.find((c) => c.platform === activePlatform);
+    return match ? { kol_id: match.kol_id, triggered_users: match.triggered_users, signups: match.signups, paid_users: match.paid_users } : undefined;
+  }, [activePlatform, conversion, conversions]);
+
   const handlePlatformClick = (p: Platform) => {
     if (activePlatform === p) {
       const url = pubMap[p];
       if (url) openExternal(url);
+      else setActivePlatform(null);
     } else {
       setActivePlatform(p);
     }
   };
 
-  const signR = conversion && conversion.triggered_users > 0
-    ? (conversion.signups / conversion.triggered_users * 100).toFixed(1) + '%' : '-';
-  const paidR = conversion && conversion.signups > 0
-    ? (conversion.paid_users / conversion.signups * 100).toFixed(1) + '%' : '-';
+  const signR = displayConversion && displayConversion.triggered_users > 0
+    ? (displayConversion.signups / displayConversion.triggered_users * 100).toFixed(1) + '%' : '-';
+  const paidR = displayConversion && displayConversion.signups > 0
+    ? (displayConversion.paid_users / displayConversion.signups * 100).toFixed(1) + '%' : '-';
 
   return (
     <div
@@ -154,12 +165,12 @@ function TimelineRow({ summary, conversion }: { summary: KolMetricSummary; conve
       {/* Metrics */}
       <div className="flex items-center gap-4 ml-auto text-[11px]">
         <Metric label="Views" value={fmt(displayTotals.views)} />
-        {conversion && conversion.triggered_users > 0 && (
+        {displayConversion && displayConversion.triggered_users > 0 && (
           <>
-            <Metric label="Reached" value={fmt(conversion.triggered_users)} />
-            <Metric label="Signups" value={fmt(conversion.signups)} />
+            <Metric label="Reached" value={fmt(displayConversion.triggered_users)} />
+            <Metric label="Signups" value={fmt(displayConversion.signups)} />
             <Metric label="Sign R" value={signR} highlight />
-            <Metric label="Paid" value={fmt(conversion.paid_users)} />
+            <Metric label="Paid" value={fmt(displayConversion.paid_users)} />
             <Metric label="Paid R" value={paidR} highlight />
           </>
         )}

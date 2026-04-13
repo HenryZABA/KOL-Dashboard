@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
 import { PlatformIcon } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary, MetricTotals } from '@/hooks/useVideoMetrics';
-import type { KolConversion } from '@/hooks/useKolConversions';
+import type { KolConversionAgg } from '@/hooks/useKolConversions';
 import type { Platform } from '@/lib/mock-data';
 import { cn, openExternal } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
@@ -58,7 +58,7 @@ interface KolTickerCardProps {
   summary: KolMetricSummary;
   sparkline: { date: string; views: number }[];
   sparklineByPlatform: (platform: Platform) => { date: string; views: number }[];
-  conversion?: KolConversion;
+  conversion?: KolConversionAgg;
 }
 
 export function KolTickerCard({ summary, sparkline, sparklineByPlatform, conversion }: KolTickerCardProps) {

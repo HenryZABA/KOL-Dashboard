@@ -3,6 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface KolConversion {
   kol_id: string;
+  platform: string;
+  triggered_users: number;
+  signups: number;
+  paid_users: number;
+}
+
+/** Aggregated conversion across all platforms for a single KOL */
+export interface KolConversionAgg {
+  kol_id: string;
   triggered_users: number;
   signups: number;
   paid_users: number;
@@ -14,7 +23,7 @@ export function useKolConversions(kolIds: string[]) {
 
   const idsKey = useMemo(() => kolIds.join(','), [kolIds]);
 
-  const fetch = useCallback(async (ids: string[]) => {
+  const fetchData = useCallback(async (ids: string[]) => {
     if (ids.length === 0) {
       setRows([]);
       setLoading(false);
@@ -22,7 +31,7 @@ export function useKolConversions(kolIds: string[]) {
     }
     const { data, error } = await supabase
       .from('kol_conversions')
-      .select('kol_id, triggered_users, signups, paid_users')
+      .select('kol_id, platform, triggered_users, signups, paid_users')
       .in('kol_id', ids);
 
     if (!error && data) {
@@ -32,14 +41,34 @@ export function useKolConversions(kolIds: string[]) {
   }, []);
 
   useEffect(() => {
-    fetch(idsKey ? idsKey.split(',') : []);
-  }, [idsKey, fetch]);
+    fetchData(idsKey ? idsKey.split(',') : []);
+  }, [idsKey, fetchData]);
 
-  const conversionMap = useMemo(() => {
-    const map = new Map<string, KolConversion>();
-    for (const r of rows) map.set(r.kol_id, r);
+  /** All conversion rows grouped by kol_id */
+  const conversionsByKol = useMemo(() => {
+    const map = new Map<string, KolConversion[]>();
+    for (const r of rows) {
+      const arr = map.get(r.kol_id) || [];
+      arr.push(r);
+      map.set(r.kol_id, arr);
+    }
     return map;
   }, [rows]);
 
-  return { conversionMap, loading };
+  /** Aggregated (all-platform) map for components that only need totals */
+  const conversionMap = useMemo(() => {
+    const map = new Map<string, KolConversionAgg>();
+    for (const [kolId, convs] of conversionsByKol.entries()) {
+      const agg: KolConversionAgg = { kol_id: kolId, triggered_users: 0, signups: 0, paid_users: 0 };
+      for (const c of convs) {
+        agg.triggered_users += c.triggered_users;
+        agg.signups += c.signups;
+        agg.paid_users += c.paid_users;
+      }
+      map.set(kolId, agg);
+    }
+    return map;
+  }, [conversionsByKol]);
+
+  return { conversionMap, conversionsByKol, loading };
 }

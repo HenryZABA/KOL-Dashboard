@@ -41,7 +41,7 @@ export default function PerformancePage() {
   }, [kols, selectedAgencyId]);
 
   const { kolSummaries, aggregateTotals, trendData, sparklineData, sparklineDataByPlatform, loading } = useVideoMetrics(publishedKols);
-  const { conversionMap } = useKolConversions(publishedKols.map((k) => k.id));
+  const { conversionMap, conversionsByKol } = useKolConversions(publishedKols.map((k) => k.id));
 
   const sortedSummaries = useMemo(() => {
     return [...kolSummaries].sort((a, b) => {
@@ -161,7 +161,7 @@ export default function PerformancePage() {
         </div>
 
         {viewMode === 'timeline' ? (
-          <DateTimeline kolSummaries={sortedSummaries} conversionMap={conversionMap} />
+          <DateTimeline kolSummaries={sortedSummaries} conversionMap={conversionMap} conversionsByKol={conversionsByKol} />
         ) : sortedSummaries.length === 0 ? (
           <div className="flex items-center justify-center rounded-lg border border-dashed py-16">
             <p className="text-sm text-muted-foreground">
