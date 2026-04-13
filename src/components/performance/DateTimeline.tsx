@@ -135,8 +135,7 @@ function TimelineRow({ summary, conversion, conversions }: { summary: KolMetricS
 
   return (
     <div
-      onClick={() => activePlatform && setActivePlatform(null)}
-      className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs"
+      className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs cursor-default"
     >
       {/* Name + icons */}
       <div className="flex items-center gap-1.5 w-44 shrink-0 min-w-0">
@@ -146,17 +145,17 @@ function TimelineRow({ summary, conversion, conversions }: { summary: KolMetricS
           return (
             <button
               key={p}
-              onClick={(e) => { e.stopPropagation(); handlePlatformClick(p); }}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePlatformClick(p); }}
               title={isActive ? `Open ${p} link` : `View ${p} data`}
               className={cn(
-                'rounded p-0.5 transition-all cursor-pointer shrink-0',
+                'rounded p-1 transition-all cursor-pointer shrink-0',
                 isActive
                   ? 'bg-primary/15 ring-1 ring-primary/50 scale-110'
-                  : 'hover:bg-accent',
-                !pubMap[p] && !isActive && 'opacity-40',
+                  : 'hover:bg-accent opacity-70 hover:opacity-100',
               )}
             >
-              <PlatformIcon platform={p} className="h-3 w-3" />
+              <PlatformIcon platform={p} className="h-3.5 w-3.5" />
             </button>
           );
         })}
