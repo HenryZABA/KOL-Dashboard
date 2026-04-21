@@ -1,0 +1,5 @@
+
+UPDATE kols SET utm_content = 'Moddy' WHERE id = '75384d45-e2ce-48c1-bc7b-0fbdf957893b';
+UPDATE kols SET utm_content = 'volkan_js' WHERE id = 'b692c1d8-f2ec-4ccb-9c27-d2eafaf9204a';
+UPDATE kols SET utm_content = 'Get365AI' WHERE id = '2dba6f59-30e6-49ce-a091-d01df4c516a8';
+UPDATE kols SET utm_content = 'Mari_Rel' WHERE id = '8c03cf02-93a5-4a99-910b-491608ddb191';

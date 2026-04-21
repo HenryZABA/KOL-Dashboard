@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      agencies: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          token?: string
+        }
+        Relationships: []
+      }
       agency: {
         Row: {
           access_token: string
@@ -37,6 +58,92 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      change_log: {
+        Row: {
+          created_at: string
+          from_stage: string | null
+          id: string
+          kol_id: string
+          note: string | null
+          to_stage: string
+        }
+        Insert: {
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          kol_id: string
+          note?: string | null
+          to_stage: string
+        }
+        Update: {
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          kol_id?: string
+          note?: string | null
+          to_stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "change_log_kol_id_fkey"
+            columns: ["kol_id"]
+            isOneToOne: false
+            referencedRelation: "kols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base: {
+        Row: {
+          agency_id: string | null
+          chunk_index: number | null
+          content: string
+          created_at: string
+          file_type: string | null
+          file_url: string | null
+          id: string
+          source_doc_id: string | null
+          title: string
+        }
+        Insert: {
+          agency_id?: string | null
+          chunk_index?: number | null
+          content?: string
+          created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          source_doc_id?: string | null
+          title: string
+        }
+        Update: {
+          agency_id?: string | null
+          chunk_index?: number | null
+          content?: string
+          created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          source_doc_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_base_source_doc_id_fkey"
+            columns: ["source_doc_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kol: {
         Row: {
@@ -102,6 +209,44 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kol_conversions: {
+        Row: {
+          id: string
+          kol_id: string
+          paid_users: number
+          platform: string
+          signups: number
+          triggered_users: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kol_id: string
+          paid_users?: number
+          platform?: string
+          signups?: number
+          triggered_users?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kol_id?: string
+          paid_users?: number
+          platform?: string
+          signups?: number
+          triggered_users?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kol_conversions_kol_id_fkey"
+            columns: ["kol_id"]
+            isOneToOne: false
+            referencedRelation: "kols"
             referencedColumns: ["id"]
           },
         ]
@@ -187,6 +332,175 @@ export type Database = {
             columns: ["kol_id"]
             isOneToOne: false
             referencedRelation: "kol"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kols: {
+        Row: {
+          agency_id: string
+          bitly_link: string | null
+          content_direction: string | null
+          created_at: string
+          current_stage: string
+          feishu_url: string | null
+          id: string
+          is_todays_focus: boolean
+          name: string
+          notes: string | null
+          platforms: string[]
+          profile_url: string | null
+          project_complete: boolean
+          published_at: string | null
+          script_complete: boolean
+          script_version: number
+          stage_links: Json
+          stage_updated_at: string
+          utm_content: string | null
+          utm_link: string | null
+          video_version: number
+        }
+        Insert: {
+          agency_id: string
+          bitly_link?: string | null
+          content_direction?: string | null
+          created_at?: string
+          current_stage?: string
+          feishu_url?: string | null
+          id?: string
+          is_todays_focus?: boolean
+          name: string
+          notes?: string | null
+          platforms?: string[]
+          profile_url?: string | null
+          project_complete?: boolean
+          published_at?: string | null
+          script_complete?: boolean
+          script_version?: number
+          stage_links?: Json
+          stage_updated_at?: string
+          utm_content?: string | null
+          utm_link?: string | null
+          video_version?: number
+        }
+        Update: {
+          agency_id?: string
+          bitly_link?: string | null
+          content_direction?: string | null
+          created_at?: string
+          current_stage?: string
+          feishu_url?: string | null
+          id?: string
+          is_todays_focus?: boolean
+          name?: string
+          notes?: string | null
+          platforms?: string[]
+          profile_url?: string | null
+          project_complete?: boolean
+          published_at?: string | null
+          script_complete?: boolean
+          script_version?: number
+          stage_links?: Json
+          stage_updated_at?: string
+          utm_content?: string | null
+          utm_link?: string | null
+          video_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kols_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_summaries: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          summary_date: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          summary_date: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          summary_date?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      video_metrics: {
+        Row: {
+          comments: number
+          created_at: string
+          id: string
+          kol_id: string
+          likes: number
+          platform: string
+          recorded_at: string
+          shares: number
+          views: number
+        }
+        Insert: {
+          comments?: number
+          created_at?: string
+          id?: string
+          kol_id: string
+          likes?: number
+          platform: string
+          recorded_at?: string
+          shares?: number
+          views?: number
+        }
+        Update: {
+          comments?: number
+          created_at?: string
+          id?: string
+          kol_id?: string
+          likes?: number
+          platform?: string
+          recorded_at?: string
+          shares?: number
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_metrics_kol_id_fkey"
+            columns: ["kol_id"]
+            isOneToOne: false
+            referencedRelation: "kols"
             referencedColumns: ["id"]
           },
         ]

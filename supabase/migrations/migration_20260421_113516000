@@ -1,0 +1,16 @@
+
+-- Delete duplicate AiZen_Tools (the one without utm_content)
+DELETE FROM video_metrics WHERE kol_id = '3d9973bf-5e15-4c7c-8679-d90df211e230';
+DELETE FROM kol_conversions WHERE kol_id = '3d9973bf-5e15-4c7c-8679-d90df211e230';
+DELETE FROM kols WHERE id = '3d9973bf-5e15-4c7c-8679-d90df211e230';
+
+-- Delete realdjr again
+DELETE FROM video_metrics WHERE kol_id = '99599959-d15b-4c4a-baa6-1ed28b40f835';
+DELETE FROM kol_conversions WHERE kol_id = '99599959-d15b-4c4a-baa6-1ed28b40f835';
+DELETE FROM kols WHERE id = '99599959-d15b-4c4a-baa6-1ed28b40f835';
+
+-- Fix shot_by_cg: remove tiktok from platforms
+UPDATE kols SET platforms = '{instagram}' WHERE id = '0cd26f34-89c3-4963-b71b-7e5b749b1643';
+
+-- Fix Fatih Kilic: was originally instagram only
+UPDATE kols SET platforms = '{instagram}' WHERE id = '50d3f8d8-796e-414e-8cc8-5e25eba587f5';
