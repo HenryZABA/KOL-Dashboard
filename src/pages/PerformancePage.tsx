@@ -4,11 +4,11 @@ import { useVideoMetrics } from '@/hooks/useVideoMetrics';
 import { useKolConversions } from '@/hooks/useKolConversions';
 import { KolTickerCard } from '@/components/performance/KolTickerCard';
 import { MarketOverview } from '@/components/performance/MarketOverview';
-import { DateTimeline } from '@/components/performance/DateTimeline';
-import { BarChart3, ArrowUpDown, LayoutGrid, List } from 'lucide-react';
+import { CalendarView } from '@/components/performance/CalendarView';
+import { BarChart3, ArrowUpDown, LayoutGrid, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type ViewMode = 'cards' | 'timeline';
+type ViewMode = 'cards' | 'calendar';
 type SortKey = 'name' | 'views' | 'likes' | 'comments' | 'shares';
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -129,13 +129,13 @@ export default function PerformancePage() {
                 <LayoutGrid className="h-3.5 w-3.5" />
               </button>
               <button
-                onClick={() => setViewMode('timeline')}
+                onClick={() => setViewMode('calendar')}
                 className={cn(
                   'p-1 rounded transition-colors',
-                  viewMode === 'timeline' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  viewMode === 'calendar' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <List className="h-3.5 w-3.5" />
+                <CalendarDays className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -160,8 +160,8 @@ export default function PerformancePage() {
           )}
         </div>
 
-        {viewMode === 'timeline' ? (
-          <DateTimeline kolSummaries={sortedSummaries} conversionMap={conversionMap} conversionsByKol={conversionsByKol} />
+        {viewMode === 'calendar' ? (
+          <CalendarView kolSummaries={sortedSummaries} conversionMap={conversionMap} conversionsByKol={conversionsByKol} />
         ) : sortedSummaries.length === 0 ? (
           <div className="flex items-center justify-center rounded-lg border border-dashed py-16">
             <p className="text-sm text-muted-foreground">
