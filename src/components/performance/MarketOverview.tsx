@@ -74,6 +74,8 @@ export function MarketOverview({ totals, trendData, kolSummaries }: MarketOvervi
                     tickFormatter={(v: string) => v.slice(5)}
                     axisLine={false}
                     tickLine={false}
+                    interval="preserveStartEnd"
+                    padding={{ right: 10 }}
                   />
                   <YAxis
                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
