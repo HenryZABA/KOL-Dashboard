@@ -1,7 +1,17 @@
+import { useState, useMemo } from 'react';
 import { Eye, Heart, MessageCircle, Share2, Trophy } from 'lucide-react';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+
+type TimeRange = '1W' | '1M' | '3M' | 'ALL';
+
+const RANGES: { key: TimeRange; label: string; days: number }[] = [
+  { key: '1W', label: '1W', days: 7 },
+  { key: '1M', label: '1M', days: 30 },
+  { key: '3M', label: '3M', days: 90 },
+  { key: 'ALL', label: 'ALL', days: Infinity },
+];
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -37,6 +47,17 @@ interface MarketOverviewProps {
 }
 
 export function MarketOverview({ totals, trendData, kolSummaries }: MarketOverviewProps) {
+  const [range, setRange] = useState<TimeRange>('1M');
+
+  const filteredTrend = useMemo(() => {
+    if (range === 'ALL' || trendData.length === 0) return trendData;
+    const days = RANGES.find((r) => r.key === range)!.days;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    return trendData.filter((d) => d.date >= cutoffStr);
+  }, [trendData, range]);
+
   // Top 3 performers by views
   const topPerformers = [...kolSummaries]
     .filter((s) => s.totals.views > 0)
@@ -56,11 +77,29 @@ export function MarketOverview({ totals, trendData, kolSummaries }: MarketOvervi
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Trend chart */}
         <div className="flex-1 rounded-lg border bg-card p-4 shadow-card">
-          <h3 className="text-sm font-medium text-card-foreground mb-3">Daily Views Growth Rate (%)</h3>
-          {trendData.length > 0 ? (
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-card-foreground">Daily Views Growth Rate (%)</h3>
+            <div className="flex gap-1">
+              {RANGES.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => setRange(r.key)}
+                  className={cn(
+                    'px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors',
+                    range === r.key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-card-foreground hover:bg-muted',
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {filteredTrend.length > 0 ? (
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData}>
+                <AreaChart data={filteredTrend}>
                   <defs>
                     <linearGradient id="viewsGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
