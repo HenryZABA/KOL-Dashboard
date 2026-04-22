@@ -5,7 +5,7 @@ import { useKolConversions } from '@/hooks/useKolConversions';
 import { KolTickerCard } from '@/components/performance/KolTickerCard';
 import { MarketOverview } from '@/components/performance/MarketOverview';
 import { CalendarView } from '@/components/performance/CalendarView';
-import { BarChart3, ArrowUpDown, LayoutGrid, CalendarDays } from 'lucide-react';
+import { BarChart3, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'cards' | 'calendar';
@@ -122,20 +122,20 @@ export default function PerformancePage() {
               <button
                 onClick={() => setViewMode('cards')}
                 className={cn(
-                  'p-1 rounded transition-colors',
+                  'px-2.5 py-1 rounded text-[11px] font-medium transition-colors',
                   viewMode === 'cards' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <LayoutGrid className="h-3.5 w-3.5" />
+                Cards
               </button>
               <button
                 onClick={() => setViewMode('calendar')}
                 className={cn(
-                  'p-1 rounded transition-colors',
+                  'px-2.5 py-1 rounded text-[11px] font-medium transition-colors',
                   viewMode === 'calendar' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <CalendarDays className="h-3.5 w-3.5" />
+                Calendar
               </button>
             </div>
           </div>
