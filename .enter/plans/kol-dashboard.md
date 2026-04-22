@@ -1,43 +1,49 @@
-# Plan: KOL Card Platform Icons with Two-Click Interaction
+# Plan: Replace Timeline View with Calendar View
 
 ## Context
-KOL cards in Performance page may have videos on multiple platforms (YouTube, TikTok, etc.). Currently the platform icons just link out. The user wants:
-1. Each platform with data should show its icon in top-right corner
-2. **First click**: Switch card data to show that platform's metrics/sparkline only (icon enters "selected" state — visually distinct: filled background + ring)
-3. **Second click on same selected icon**: Open external link (icon pulses briefly as feedback)
-4. Default: show aggregated all-platform data (no icon selected)
+The current Timeline view in the Performance section groups KOLs by publish date in a flat list. The user wants a **Calendar month view** instead, where each day cell shows KOLs published that day. Clicking a day opens a Dialog with full details.
 
-## Files to modify
+## Files to Modify
+- **CREATE** `src/components/performance/CalendarView.tsx` — Custom month grid calendar
+- **CREATE** `src/components/performance/DayDetailDialog.tsx` — Dialog showing KOL details for a clicked day
+- **MODIFY** `src/pages/PerformancePage.tsx` — Replace `DateTimeline` import/usage with `CalendarView`, update toggle icon from `List` to `CalendarDays`
+- **DELETE** `src/components/performance/DateTimeline.tsx` — No longer needed
 
-### 1. `src/hooks/useVideoMetrics.ts`
-- Add `sparklineDataByPlatform(kolId, platform)` — returns per-platform daily growth rate sparkline
-- Add per-platform totals/deltas to `KolMetricSummary` (a `perPlatform` map)
+## Implementation
 
-### 2. `src/components/performance/KolTickerCard.tsx`
-- Add `activePlatform` state (null = all, or a Platform value)
-- Replace `<LinkedPlatformIcons>` with custom inline icons that:
-  - Track click count via `activePlatform` state
-  - First click: `setActivePlatform(p)` — show platform-specific data
-  - Second click (same platform already active): `openExternal(url)` + optionally keep selected
-  - Click different platform: switch to that platform
-  - Visual states:
-    - **Inactive**: normal icon with hover effect (current style)
-    - **Selected/Active (1st click)**: icon gets `bg-primary/10 ring-1 ring-primary rounded` highlight
-- When `activePlatform` is set, show that platform's sparkline and metrics instead of aggregate
-- Accept new props: `sparklineByPlatform` callback and `perPlatformData` map
+### CalendarView.tsx
+- Props: same as DateTimeline (`kolSummaries`, `conversionMap`, `conversionsByKol`)
+- State: `currentMonth` (Date), `selectedDate` (string | null for dialog)
+- Group `kolSummaries` by `publishedAt` ISO date string → `Map<string, KolMetricSummary[]>`
+- Render a 7-column grid (Mon–Sun), with prev/next month navigation
+- Each day cell:
+  - Day number
+  - If KOLs exist for that date: show count badge + first 2-3 KOL names truncated with platform icons
+  - Days with events get a subtle highlight background
+  - `onClick` → set `selectedDate` to open dialog
+- Show outside-month days dimmed
 
-### 3. `src/pages/PerformancePage.tsx`
-- Pass `sparklineDataByPlatform` to KolTickerCard
-- Pass per-platform summary data
+### DayDetailDialog.tsx
+- Uses shadcn `Dialog`
+- Props: `date`, `entries: KolMetricSummary[]`, `conversionMap`, `conversionsByKol`, `open`, `onClose`
+- Content: reuses the same row layout from the old TimelineRow — KOL name, platform icons, Views, Reached, Signups, Sign R, Paid, Paid R
+- Date header with aggregate totals for the day
 
-## Visual distinction (first click vs second click)
-- **Default**: icon normal, `opacity-100` or `opacity-30` if no link
-- **First click (selected)**: `bg-primary/15 ring-1 ring-primary/50 rounded-md p-1` — highlighted background + ring  
-- **Second click**: opens link (icon is already highlighted, clicking again navigates out)
-- Clicking a different icon deselects previous, selects new one
+### PerformancePage.tsx
+- Replace `DateTimeline` import with `CalendarView`
+- Change toggle icon from `List` to `CalendarDays` (from lucide-react)
+- Pass same props to CalendarView
+
+## Reused Patterns
+- `PlatformIcon` component for platform icons in calendar cells and dialog
+- `parsePubLinks` + `openExternal` for clickable platform links in dialog
+- `fmt()` number formatter
+- `KolConversion` / `KolConversionAgg` types from useKolConversions
+- shadcn `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`
 
 ## Verification
-- Card with 2+ platforms: click YouTube → sparkline/metrics switch to YouTube only
-- Click YouTube again → opens external link
-- Click TikTok → switches to TikTok data, YouTube deselects
-- Click empty area / no platform selected → shows aggregate data
+- Navigate to Performance page, toggle to Calendar view
+- See month grid with KOL names on their publish dates
+- Navigate between months with prev/next buttons
+- Click a day with KOLs → Dialog opens showing detailed data
+- Agency filter still works (filters KOLs shown in calendar)
