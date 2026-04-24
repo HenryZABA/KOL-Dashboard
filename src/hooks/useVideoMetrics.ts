@@ -141,16 +141,23 @@ export function useVideoMetrics(kols: KOL[]) {
     return result;
   }, [metrics]);
 
-  /** Sparkline data for a specific KOL — daily growth rate */
+  /** Sparkline data for a specific KOL — daily growth rate (aggregated across platforms) */
   const sparklineData = (kolId: string): { date: string; views: number }[] => {
     const rows = metricsByKol.get(kolId) || [];
     if (rows.length < 2) return [];
+    // Group by date, sum views across platforms
+    const byDate = new Map<string, number>();
+    for (const r of rows) {
+      const d = r.recorded_at.slice(0, 10);
+      byDate.set(d, (byDate.get(d) || 0) + r.views);
+    }
+    const dates = [...byDate.keys()].sort();
+    if (dates.length < 2) return [];
     const result: { date: string; views: number }[] = [];
-    for (let i = 1; i < rows.length; i++) {
-      const prev = rows[i - 1];
-      const curr = rows[i];
-      const growth = prev.views > 0 ? ((curr.views - prev.views) / prev.views) * 100 : 0;
-      result.push({ date: curr.recorded_at.slice(0, 10), views: growth });
+    for (let i = 1; i < dates.length; i++) {
+      const prev = byDate.get(dates[i - 1])!;
+      const curr = byDate.get(dates[i])!;
+      result.push({ date: dates[i], views: prev > 0 ? ((curr - prev) / prev) * 100 : 0 });
     }
     return result;
   };
@@ -159,12 +166,19 @@ export function useVideoMetrics(kols: KOL[]) {
   const sparklineDataByPlatform = (kolId: string, platform: Platform): { date: string; views: number }[] => {
     const rows = (metricsByKol.get(kolId) || []).filter((m) => m.platform === platform);
     if (rows.length < 2) return [];
+    // Group by date in case of multiple records per day
+    const byDate = new Map<string, number>();
+    for (const r of rows) {
+      const d = r.recorded_at.slice(0, 10);
+      byDate.set(d, (byDate.get(d) || 0) + r.views);
+    }
+    const dates = [...byDate.keys()].sort();
+    if (dates.length < 2) return [];
     const result: { date: string; views: number }[] = [];
-    for (let i = 1; i < rows.length; i++) {
-      const prev = rows[i - 1];
-      const curr = rows[i];
-      const growth = prev.views > 0 ? ((curr.views - prev.views) / prev.views) * 100 : 0;
-      result.push({ date: curr.recorded_at.slice(0, 10), views: growth });
+    for (let i = 1; i < dates.length; i++) {
+      const prev = byDate.get(dates[i - 1])!;
+      const curr = byDate.get(dates[i])!;
+      result.push({ date: dates[i], views: prev > 0 ? ((curr - prev) / prev) * 100 : 0 });
     }
     return result;
   };
