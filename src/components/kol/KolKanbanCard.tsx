@@ -64,12 +64,16 @@ export function KolKanbanCard({ kol, agency }: KolKanbanCardProps) {
 
       {/* Footer - pinned to bottom */}
       <div className="flex items-center justify-between pt-1 mt-auto h-6">
-        <div className="flex items-center gap-1">
-          <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
-          <span className={cn('text-[11px]', overdue ? 'text-overdue font-medium' : 'text-muted-foreground')}>
-            {days}d
-          </span>
-        </div>
+        {kol.currentStage !== 'published' ? (
+          <div className="flex items-center gap-1">
+            <Clock className={cn('h-3 w-3', overdue ? 'text-overdue' : 'text-muted-foreground')} />
+            <span className={cn('text-[11px]', overdue ? 'text-overdue font-medium' : 'text-muted-foreground')}>
+              {days}d
+            </span>
+          </div>
+        ) : (
+          <div />
+        )}
         {agency && (
           <Badge variant="secondary" className="text-[10px] font-normal py-0 px-1.5">
             {agency.name}

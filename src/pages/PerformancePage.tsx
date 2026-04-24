@@ -5,7 +5,8 @@ import { useKolConversions } from '@/hooks/useKolConversions';
 import { KolTickerCard } from '@/components/performance/KolTickerCard';
 import { MarketOverview } from '@/components/performance/MarketOverview';
 import { CalendarView } from '@/components/performance/CalendarView';
-import { BarChart3, ArrowUpDown } from 'lucide-react';
+import { BarChart3, ArrowUpDown, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'cards' | 'calendar';
@@ -26,6 +27,7 @@ export default function PerformancePage() {
   const [sortBy, setSortBy] = useState<SortKey>('views');
   const [sortDesc, setSortDesc] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const activeAgencies = useMemo(() => {
     const agencyIds = new Set(kols.filter((k) => k.currentStage === 'published').map((k) => k.agencyId));
@@ -36,9 +38,13 @@ export default function PerformancePage() {
     return kols.filter((k) => {
       if (k.currentStage !== 'published') return false;
       if (selectedAgencyId && k.agencyId !== selectedAgencyId) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!k.name.toLowerCase().includes(q)) return false;
+      }
       return true;
     });
-  }, [kols, selectedAgencyId]);
+  }, [kols, selectedAgencyId, searchQuery]);
 
   const { kolSummaries, aggregateTotals, trendData, sparklineData, sparklineDataByPlatform, loading } = useVideoMetrics(publishedKols);
   const { conversionMap, conversionsByKol } = useKolConversions(publishedKols.map((k) => k.id));
@@ -107,6 +113,17 @@ export default function PerformancePage() {
             {agency.name}
           </button>
         ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search KOLs..."
+          className="pl-9 h-9"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       {/* Market Overview */}
