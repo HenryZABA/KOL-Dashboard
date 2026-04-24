@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useKolStore } from '@/lib/kol-store';
-import { KANBAN_COLUMNS, getKanbanColumn, isOverdue, type Platform } from '@/lib/mock-data';
+import { KANBAN_COLUMNS, getKanbanColumn, isOverdue, type Platform } from '@/lib/types';
 import { KolKanbanColumn } from '@/components/kol/KolKanbanColumn';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';

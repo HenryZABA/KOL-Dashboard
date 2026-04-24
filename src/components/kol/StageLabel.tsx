@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
-import type { KOL, Stage } from '@/lib/mock-data';
-import { STAGE_LABELS } from '@/lib/mock-data';
+import type { KOL, Stage } from '@/lib/types';
+import { STAGE_LABELS } from '@/lib/types';
 import { cn, openExternal } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
 

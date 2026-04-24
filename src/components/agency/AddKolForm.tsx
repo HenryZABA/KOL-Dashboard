@@ -11,8 +11,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import type { Platform } from '@/lib/mock-data';
-import { PLATFORM_LABELS } from '@/lib/mock-data';
+import type { Platform } from '@/lib/types';
+import { PLATFORM_LABELS } from '@/lib/types';
 
 interface AddKolFormProps {
   open: boolean;

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import type { KOL, Stage } from '@/lib/mock-data';
-import { isOverdue } from '@/lib/mock-data';
+import type { KOL, Stage } from '@/lib/types';
+import { isOverdue } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { AlertCircle, TrendingUp } from 'lucide-react';
 

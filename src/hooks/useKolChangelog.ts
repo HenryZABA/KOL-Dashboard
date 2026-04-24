@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { ChangeLogEntry, Stage } from '@/lib/mock-data';
+import type { ChangeLogEntry, Stage } from '@/lib/types';
 
 function dbToChangeLog(row: Record<string, unknown>): ChangeLogEntry {
   return {

@@ -1,8 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { PlatformIcons, LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
 import { ParallelStageLabel } from '@/components/kol/StageLabel';
-import type { KOL, Stage, Agency } from '@/lib/mock-data';
-import { getDaysInStage, isOverdue } from '@/lib/mock-data';
+import type { KOL, Stage, Agency } from '@/lib/types';
+import { getDaysInStage, isOverdue } from '@/lib/types';
 import { cn, openExternal } from '@/lib/utils';
 import { Clock, ExternalLink, X } from 'lucide-react';
 

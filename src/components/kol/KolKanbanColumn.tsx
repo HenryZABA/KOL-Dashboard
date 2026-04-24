@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { KOL, Agency } from '@/lib/mock-data';
+import type { KOL, Agency } from '@/lib/types';
 import { KolKanbanCard } from './KolKanbanCard';
 import { cn } from '@/lib/utils';
 import { ChevronRight } from 'lucide-react';

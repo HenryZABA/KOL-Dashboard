@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
 import { PlatformIcon } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary, MetricTotals } from '@/hooks/useVideoMetrics';
 import type { KolConversionAgg } from '@/hooks/useKolConversions';
-import type { Platform } from '@/lib/mock-data';
+import type { Platform } from '@/lib/types';
 import { cn, openExternal, formatNumber, parsePubLinks } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 

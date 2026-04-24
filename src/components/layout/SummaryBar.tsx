@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useKolStore } from '@/lib/kol-store';
-import { isOverdue, STAGE_LABELS, type Stage } from '@/lib/mock-data';
+import { isOverdue, STAGE_LABELS, type Stage } from '@/lib/types';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 const STAGE_DOT_COLORS: Record<string, string> = {

@@ -1,5 +1,5 @@
-import type { KOL } from '@/lib/mock-data';
-import { STAGE_LABELS } from '@/lib/mock-data';
+import type { KOL } from '@/lib/types';
+import { STAGE_LABELS } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface ChangeLogProps {

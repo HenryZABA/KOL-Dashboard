@@ -7,7 +7,7 @@ import { KolDetailPanel } from '@/components/agency/KolDetailPanel';
 import { CsvImportDialog } from '@/components/agency/CsvImportDialog';
 import { AgencyAiChat } from '@/components/agency/AgencyAiChat';
 import { Button } from '@/components/ui/button';
-import type { KOL, Platform } from '@/lib/mock-data';
+import type { KOL, Platform } from '@/lib/types';
 import { Building2, Plus, Upload, Search, Users, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';

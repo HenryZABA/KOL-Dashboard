@@ -8,7 +8,7 @@ import {
 import { PlatformIcon } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import type { KolConversionAgg, KolConversion } from '@/hooks/useKolConversions';
-import type { Platform } from '@/lib/mock-data';
+import type { Platform } from '@/lib/types';
 import { cn, openExternal, formatNumber, parsePubLinks } from '@/lib/utils';
 
 interface DayDetailDialogProps {

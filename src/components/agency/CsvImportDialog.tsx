@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useKolStore } from '@/lib/kol-store';
-import type { Platform, Agency, Stage } from '@/lib/mock-data';
-import { STAGE_LABELS } from '@/lib/mock-data';
+import type { Platform, Agency, Stage } from '@/lib/types';
+import { STAGE_LABELS } from '@/lib/types';
 import { FileSpreadsheet, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

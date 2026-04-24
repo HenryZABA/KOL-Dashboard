@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Building2, Copy, Plus, Trash2, Check, ExternalLink } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import type { Agency } from '@/lib/mock-data';
+import type { Agency } from '@/lib/types';
 
 function copyToClipboard(text: string): boolean {
   try {

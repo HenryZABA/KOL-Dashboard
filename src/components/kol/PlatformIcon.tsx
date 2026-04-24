@@ -1,5 +1,5 @@
 import { Youtube, Instagram, Facebook } from 'lucide-react';
-import type { Platform } from '@/lib/mock-data';
+import type { Platform } from '@/lib/types';
 import { cn, openExternal } from '@/lib/utils';
 
 const TikTokIcon = ({ className }: { className?: string }) => (

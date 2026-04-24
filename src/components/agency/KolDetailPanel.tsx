@@ -16,8 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChangeLog } from './ChangeLog';
 import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import { StageLabel } from '@/components/kol/StageLabel';
-import type { KOL, Stage, Platform } from '@/lib/mock-data';
-import { STAGE_LABELS, getDaysInStage, isOverdue } from '@/lib/mock-data';
+import type { KOL, Stage, Platform } from '@/lib/types';
+import { STAGE_LABELS, getDaysInStage, isOverdue } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Clock, Link as LinkIcon, Plus, Trash2 } from 'lucide-react';
 

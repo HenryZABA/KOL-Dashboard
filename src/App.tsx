@@ -7,7 +7,15 @@ import { routers } from "./router";
 import { KolStoreProvider } from "./lib/kol-store";
 import { AuthProvider } from "./lib/auth";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,       // 5 min
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => {
   const router = createBrowserRouter(routers);

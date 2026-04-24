@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { PlatformIcons, LinkedPlatformIcons } from '@/components/kol/PlatformIcon';
-import type { KOL, Agency } from '@/lib/mock-data';
-import { getDaysInStage, isOverdue } from '@/lib/mock-data';
+import type { KOL, Agency } from '@/lib/types';
+import { getDaysInStage, isOverdue } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Clock } from 'lucide-react';
 

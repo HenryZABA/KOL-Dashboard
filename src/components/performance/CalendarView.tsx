@@ -4,7 +4,7 @@ import { PlatformIcon } from '@/components/kol/PlatformIcon';
 import { DayDetailDialog } from './DayDetailDialog';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import type { KolConversion, KolConversionAgg } from '@/hooks/useKolConversions';
-import type { Platform } from '@/lib/mock-data';
+import type { Platform } from '@/lib/types';
 import { cn, formatNumber } from '@/lib/utils';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

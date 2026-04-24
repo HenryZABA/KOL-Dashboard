@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/table';
 import { PlatformIcons } from '@/components/kol/PlatformIcon';
 import { StageLabel } from '@/components/kol/StageLabel';
-import type { KOL } from '@/lib/mock-data';
+import type { KOL } from '@/lib/types';
 import { Pin } from 'lucide-react';
 
 interface AgencyKolTableProps {

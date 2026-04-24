@@ -1,13 +1,8 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchConversions, type KolConversion } from '@/services/conversion-service';
 
-export interface KolConversion {
-  kol_id: string;
-  platform: string;
-  triggered_users: number;
-  signups: number;
-  paid_users: number;
-}
+export type { KolConversion };
 
 /** Aggregated conversion across all platforms for a single KOL */
 export interface KolConversionAgg {
@@ -18,31 +13,15 @@ export interface KolConversionAgg {
 }
 
 export function useKolConversions(kolIds: string[]) {
-  const [rows, setRows] = useState<KolConversion[]>([]);
-  const [loading, setLoading] = useState(true);
+  const stableIds = useMemo(() => [...kolIds].sort(), [kolIds]);
 
-  const idsKey = useMemo(() => kolIds.join(','), [kolIds]);
-
-  const fetchData = useCallback(async (ids: string[]) => {
-    if (ids.length === 0) {
-      setRows([]);
-      setLoading(false);
-      return;
-    }
-    const { data, error } = await supabase
-      .from('kol_conversions')
-      .select('kol_id, platform, triggered_users, signups, paid_users')
-      .in('kol_id', ids);
-
-    if (!error && data) {
-      setRows(data as unknown as KolConversion[]);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchData(idsKey ? idsKey.split(',') : []);
-  }, [idsKey, fetchData]);
+  const { data: rows = [], isLoading: loading } = useQuery({
+    queryKey: ['kolConversions', stableIds],
+    queryFn: () => fetchConversions(stableIds),
+    enabled: stableIds.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+    refetchOnWindowFocus: false,
+  });
 
   /** All conversion rows grouped by kol_id */
   const conversionsByKol = useMemo(() => {
