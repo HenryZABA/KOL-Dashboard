@@ -1,55 +1,44 @@
-# Plan: Codebase Optimization Pass
+# 优化计划：代码清理与性能提升
 
-## Issues Found & Fixes
+## 发现的问题与修复方案
 
-### 1. Dead Code: `PerformanceView.tsx` deleted but still imported
-- `PerformanceView.tsx` no longer exists (deleted during Calendar refactor) but may still be referenced
-- **Fix**: Verify no orphan imports remain
+### 1. 死代码：mock-data.ts 里 200+ 行假数据
+- 所有数据已经走 Supabase，`MOCK_KOLS`、`MOCK_AGENCIES`、`daysAgo()` 完全没用
+- **修复**：删除假数据数组，保留类型定义和工具函数
 
-### 2. Dead Code: `mock-data.ts` has MOCK_KOLS/MOCK_AGENCIES (200+ lines)
-- All data comes from Supabase now. Mock arrays are unused.
-- **Fix**: Remove `MOCK_KOLS`, `MOCK_AGENCIES`, and `daysAgo()` helper from `src/lib/mock-data.ts`. Keep types, constants, and utility functions.
+### 2. 重复函数：`formatNumber` / `parsePubLinks` 到处复制粘贴
+- `formatNumber` 出现在 4 个文件：KolTickerCard、MarketOverview、CalendarView、DayDetailDialog
+- `parsePubLinks` 出现在 2 个文件：KolTickerCard、DayDetailDialog
+- **修复**：提取到 `src/lib/utils.ts`，统一引用
 
-### 3. Duplicate `formatNumber` / `fmt` / `parsePubLinks` functions
-- `formatNumber` is copy-pasted in: `KolTickerCard.tsx`, `MarketOverview.tsx`
-- `fmt` is copy-pasted in: `CalendarView.tsx`, `DayDetailDialog.tsx`
-- `parsePubLinks` is copy-pasted in: `KolTickerCard.tsx`, `DayDetailDialog.tsx`
-- **Fix**: Move `formatNumber` and `parsePubLinks` to `src/lib/utils.ts`, import everywhere.
+### 3. AppSidebar.tsx 解构了不存在的 `showBadge`
+- 第 58 行解构了 `showBadge` 但 NAV_ITEMS 里根本没这个字段
+- **修复**：删除多余解构
 
-### 4. `SummaryBar.tsx` trailing empty div in JSX
-- Line 66 has a dangling empty block after the overdue section was removed.
-- **Fix**: Clean up the JSX.
+### 4. SummaryBar.tsx 残留空 JSX
+- 第 66 行有个没内容的空块
+- **修复**：清理掉
 
-### 5. `AppSidebar.tsx` unused `showBadge` destructure
-- Line 58: `{ to, icon: Icon, label, end, showBadge }` — `showBadge` doesn't exist in the NAV_ITEMS type.
-- **Fix**: Remove `showBadge` from destructuring.
+### 5. 性能问题：sparkline 每次调用都遍历全量 metrics（2000+ 条）
+- 每张卡片渲染时 `sparklineData(kolId)` 都 filter 整个 metrics 数组
+- **修复**：在 hook 里预先按 kol_id 建索引 Map，sparkline 只遍历当前 KOL 的子集
 
-### 6. Performance: `sparklineData` and `sparklineDataByPlatform` are `useCallback` but re-filter metrics array every call
-- Every card renders → calls `sparklineData(kolId)` → filters the entire metrics array (2000+ rows).
-- **Fix**: Pre-compute a `Map<kolId, VideoMetric[]>` grouped index once in the hook, then sparkline functions only iterate that KOL's subset.
+### 6. useVideoMetrics 缺少错误处理
+- 分页查询出错时 metrics 会是空的但没有任何提示
+- **修复**：加 console.warn 和显式 setMetrics([])
 
-### 7. `useVideoMetrics.ts` — `fetchMetrics` missing error handling
-- If the first page errors, `allData` stays empty but `setLoading(false)` is called with no metrics. No error state.
-- **Fix**: Add `setMetrics([])` on error so it's explicit, and log a warning.
+### 7. Performance 排序缺少"注册数"选项
+- 之前计划加的 Signups 排序没在当前代码里
+- **修复**：加上 signups 排序（用 conversionMap 数据）
 
-### 8. Signups sort option missing
-- Previous plan added "Signups" sort, but current `SORT_OPTIONS` in PerformancePage only has name/views/likes/comments/shares.
-- **Fix**: Add `signups` sort option (uses conversionMap).
-
-## Files to Modify
-- `src/lib/mock-data.ts` — remove mock arrays
-- `src/lib/utils.ts` — add `formatNumber`, `parsePubLinks`
-- `src/components/performance/KolTickerCard.tsx` — import shared utils
-- `src/components/performance/MarketOverview.tsx` — import shared utils
-- `src/components/performance/CalendarView.tsx` — import shared utils
-- `src/components/performance/DayDetailDialog.tsx` — import shared utils
-- `src/components/layout/AppSidebar.tsx` — remove `showBadge`
-- `src/components/layout/SummaryBar.tsx` — clean trailing JSX
-- `src/hooks/useVideoMetrics.ts` — pre-group metrics, error handling
-- `src/pages/PerformancePage.tsx` — add signups sort
-
-## Verification
-- `pnpm run lint` passes
-- Performance page renders correctly with Cards/Calendar views
-- Sparkline data displays correctly
-- Sort by signups works
+## 涉及文件
+- `src/lib/mock-data.ts` — 删假数据
+- `src/lib/utils.ts` — 加 formatNumber、parsePubLinks
+- `src/components/performance/KolTickerCard.tsx` — 引用共享函数
+- `src/components/performance/MarketOverview.tsx` — 引用共享函数
+- `src/components/performance/CalendarView.tsx` — 引用共享函数
+- `src/components/performance/DayDetailDialog.tsx` — 引用共享函数
+- `src/components/layout/AppSidebar.tsx` — 删 showBadge
+- `src/components/layout/SummaryBar.tsx` — 清理空 JSX
+- `src/hooks/useVideoMetrics.ts` — 预索引 + 错误处理
+- `src/pages/PerformancePage.tsx` — 加 signups 排序
