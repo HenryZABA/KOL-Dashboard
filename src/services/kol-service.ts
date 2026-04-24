@@ -22,6 +22,21 @@ export function dbToKol(row: Record<string, unknown>): KOL {
     stageUpdatedAt: row.stage_updated_at as string,
     publishedAt: (row.published_at as string) || undefined,
     createdAt: row.created_at as string,
+    // Influencer info
+    category: (row.category as string) || undefined,
+    followerCount: (row.follower_count as number) ?? undefined,
+    region: (row.region as string) || undefined,
+    medianViews: (row.median_views as number) ?? undefined,
+    integrationType: (row.integration_type as string) || undefined,
+    finalPrice: (row.final_price as number) ?? undefined,
+    influencerSearchNote: (row.influencer_search_note as string) || undefined,
+    // Publish info
+    bootLink: (row.boot_link as string) || undefined,
+    caption: (row.caption as string) || undefined,
+    coverUrl: (row.cover_url as string) || undefined,
+    rawFootageUrl: (row.raw_footage_url as string) || undefined,
+    dataDetailLink: (row.data_detail_link as string) || undefined,
+    screenshotTime: (row.screenshot_time as string) || undefined,
   };
 }
 
@@ -122,6 +137,21 @@ export async function updateKolFields(kolId: string, updates: Partial<KOL>): Pro
   if (updates.stageLinks !== undefined) dbUpdates.stage_links = updates.stageLinks;
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+  // Influencer info
+  if (updates.category !== undefined) dbUpdates.category = updates.category;
+  if (updates.followerCount !== undefined) dbUpdates.follower_count = updates.followerCount;
+  if (updates.region !== undefined) dbUpdates.region = updates.region;
+  if (updates.medianViews !== undefined) dbUpdates.median_views = updates.medianViews;
+  if (updates.integrationType !== undefined) dbUpdates.integration_type = updates.integrationType;
+  if (updates.finalPrice !== undefined) dbUpdates.final_price = updates.finalPrice;
+  if (updates.influencerSearchNote !== undefined) dbUpdates.influencer_search_note = updates.influencerSearchNote;
+  // Publish info
+  if (updates.bootLink !== undefined) dbUpdates.boot_link = updates.bootLink;
+  if (updates.caption !== undefined) dbUpdates.caption = updates.caption;
+  if (updates.coverUrl !== undefined) dbUpdates.cover_url = updates.coverUrl;
+  if (updates.rawFootageUrl !== undefined) dbUpdates.raw_footage_url = updates.rawFootageUrl;
+  if (updates.dataDetailLink !== undefined) dbUpdates.data_detail_link = updates.dataDetailLink;
+  if (updates.screenshotTime !== undefined) dbUpdates.screenshot_time = updates.screenshotTime;
 
   if (Object.keys(dbUpdates).length > 0) {
     await supabase.from('kols').update(dbUpdates).eq('id', kolId);

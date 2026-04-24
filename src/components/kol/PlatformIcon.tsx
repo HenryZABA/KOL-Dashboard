@@ -1,4 +1,4 @@
-import { Youtube, Instagram, Facebook } from 'lucide-react';
+import { Youtube, Instagram, Facebook, Linkedin } from 'lucide-react';
 import type { Platform } from '@/lib/types';
 import { cn, openExternal } from '@/lib/utils';
 
@@ -16,18 +16,22 @@ const XIcon = ({ className }: { className?: string }) => (
 
 const PLATFORM_ICONS: Record<Platform, React.FC<{ className?: string }>> = {
   youtube: ({ className }) => <Youtube className={cn('h-4 w-4', className)} />,
+  youtube_shorts: ({ className }) => <Youtube className={cn('h-4 w-4', className)} />,
   tiktok: ({ className }) => <TikTokIcon className={cn('h-4 w-4', className)} />,
   instagram: ({ className }) => <Instagram className={cn('h-4 w-4', className)} />,
   x: ({ className }) => <XIcon className={cn('h-4 w-4', className)} />,
   facebook: ({ className }) => <Facebook className={cn('h-4 w-4', className)} />,
+  linkedin: ({ className }) => <Linkedin className={cn('h-4 w-4', className)} />,
 };
 
 const PLATFORM_COLORS: Record<Platform, string> = {
   youtube: 'text-red-500',
+  youtube_shorts: 'text-red-400',
   tiktok: 'text-foreground',
   instagram: 'text-pink-500',
   x: 'text-foreground',
   facebook: 'text-blue-600',
+  linkedin: 'text-blue-500',
 };
 
 interface PlatformIconProps {

@@ -1,4 +1,4 @@
-export type Platform = 'youtube' | 'tiktok' | 'instagram' | 'x' | 'facebook';
+export type Platform = 'youtube' | 'youtube_shorts' | 'tiktok' | 'instagram' | 'x' | 'facebook' | 'linkedin';
 
 export type Stage =
   | 'writing_idea'
@@ -36,6 +36,21 @@ export interface KOL {
   createdAt: string;
   stageLinks?: Record<string, string>;
   changeLog?: ChangeLogEntry[];
+  // Influencer info
+  category?: string;
+  followerCount?: number;        // in K (thousands)
+  region?: string;
+  medianViews?: number;          // median of last 10 videos (K)
+  integrationType?: string;      // acceptable integration methods
+  finalPrice?: number;
+  influencerSearchNote?: string;
+  // Publish info
+  bootLink?: string;
+  caption?: string;
+  coverUrl?: string;
+  rawFootageUrl?: string;
+  dataDetailLink?: string;
+  screenshotTime?: string;
 }
 
 export interface Agency {
@@ -74,10 +89,12 @@ export const KANBAN_COLUMNS: { key: KanbanColumn; label: string; stages: Stage[]
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
   youtube: 'YouTube',
+  youtube_shorts: 'YouTube Shorts',
   tiktok: 'TikTok',
   instagram: 'Instagram',
   x: 'X',
   facebook: 'Facebook',
+  linkedin: 'LinkedIn',
 };
 
 export function getDaysInStage(stageUpdatedAt: string): number {

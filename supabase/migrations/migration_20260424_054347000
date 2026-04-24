@@ -1,0 +1,14 @@
+
+ALTER TABLE kols ADD COLUMN category text;
+ALTER TABLE kols ADD COLUMN follower_count real;
+ALTER TABLE kols ADD COLUMN region text;
+ALTER TABLE kols ADD COLUMN median_views real;
+ALTER TABLE kols ADD COLUMN integration_type text;
+ALTER TABLE kols ADD COLUMN final_price real;
+ALTER TABLE kols ADD COLUMN influencer_search_note text;
+ALTER TABLE kols ADD COLUMN boot_link text;
+ALTER TABLE kols ADD COLUMN caption text;
+ALTER TABLE kols ADD COLUMN cover_url text;
+ALTER TABLE kols ADD COLUMN raw_footage_url text;
+ALTER TABLE kols ADD COLUMN data_detail_link text;
+ALTER TABLE kols ADD COLUMN screenshot_time timestamp with time zone;

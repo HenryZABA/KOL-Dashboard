@@ -340,18 +340,31 @@ export type Database = {
         Row: {
           agency_id: string
           bitly_link: string | null
+          boot_link: string | null
+          caption: string | null
+          category: string | null
           content_direction: string | null
+          cover_url: string | null
           created_at: string
           current_stage: string
+          data_detail_link: string | null
           feishu_url: string | null
+          final_price: number | null
+          follower_count: number | null
           id: string
+          influencer_search_note: string | null
+          integration_type: string | null
           is_todays_focus: boolean
+          median_views: number | null
           name: string
           notes: string | null
           platforms: string[]
           profile_url: string | null
           project_complete: boolean
           published_at: string | null
+          raw_footage_url: string | null
+          region: string | null
+          screenshot_time: string | null
           script_complete: boolean
           script_version: number
           stage_links: Json
@@ -363,18 +376,31 @@ export type Database = {
         Insert: {
           agency_id: string
           bitly_link?: string | null
+          boot_link?: string | null
+          caption?: string | null
+          category?: string | null
           content_direction?: string | null
+          cover_url?: string | null
           created_at?: string
           current_stage?: string
+          data_detail_link?: string | null
           feishu_url?: string | null
+          final_price?: number | null
+          follower_count?: number | null
           id?: string
+          influencer_search_note?: string | null
+          integration_type?: string | null
           is_todays_focus?: boolean
+          median_views?: number | null
           name: string
           notes?: string | null
           platforms?: string[]
           profile_url?: string | null
           project_complete?: boolean
           published_at?: string | null
+          raw_footage_url?: string | null
+          region?: string | null
+          screenshot_time?: string | null
           script_complete?: boolean
           script_version?: number
           stage_links?: Json
@@ -386,18 +412,31 @@ export type Database = {
         Update: {
           agency_id?: string
           bitly_link?: string | null
+          boot_link?: string | null
+          caption?: string | null
+          category?: string | null
           content_direction?: string | null
+          cover_url?: string | null
           created_at?: string
           current_stage?: string
+          data_detail_link?: string | null
           feishu_url?: string | null
+          final_price?: number | null
+          follower_count?: number | null
           id?: string
+          influencer_search_note?: string | null
+          integration_type?: string | null
           is_todays_focus?: boolean
+          median_views?: number | null
           name?: string
           notes?: string | null
           platforms?: string[]
           profile_url?: string | null
           project_complete?: boolean
           published_at?: string | null
+          raw_footage_url?: string | null
+          region?: string | null
+          screenshot_time?: string | null
           script_complete?: boolean
           script_version?: number
           stage_links?: Json
