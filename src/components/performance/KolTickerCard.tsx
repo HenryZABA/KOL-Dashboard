@@ -4,14 +4,8 @@ import { PlatformIcon } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary, MetricTotals } from '@/hooks/useVideoMetrics';
 import type { KolConversionAgg } from '@/hooks/useKolConversions';
 import type { Platform } from '@/lib/mock-data';
-import { cn, openExternal } from '@/lib/utils';
+import { cn, openExternal, formatNumber, parsePubLinks } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
-
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
-}
 
 function DeltaBadge({ value }: { value: number }) {
   if (value === 0) {
@@ -35,23 +29,6 @@ function DeltaBadge({ value }: { value: number }) {
       {value.toFixed(1)}%
     </span>
   );
-}
-
-/** Parse pub_* entries from stageLinks into a platform -> url map */
-function parsePubLinks(stageLinks?: Record<string, string>): Record<string, string> {
-  const map: Record<string, string> = {};
-  if (!stageLinks) return map;
-  for (const [key, val] of Object.entries(stageLinks)) {
-    if (key.startsWith('pub_')) {
-      const pipeIdx = val.indexOf('|');
-      if (pipeIdx >= 0) {
-        const platform = val.slice(0, pipeIdx);
-        const url = val.slice(pipeIdx + 1);
-        if (url) map[platform] = url;
-      }
-    }
-  }
-  return map;
 }
 
 interface KolTickerCardProps {

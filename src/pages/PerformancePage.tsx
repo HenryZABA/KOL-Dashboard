@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'cards' | 'calendar';
-type SortKey = 'name' | 'views' | 'likes' | 'comments' | 'shares';
+type SortKey = 'name' | 'views' | 'likes' | 'comments' | 'shares' | 'signups';
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'Name' },
@@ -18,6 +18,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'likes', label: 'Likes' },
   { key: 'comments', label: 'Comments' },
   { key: 'shares', label: 'Shares' },
+  { key: 'signups', label: 'Signups' },
 ];
 
 export default function PerformancePage() {
@@ -54,11 +55,16 @@ export default function PerformancePage() {
       if (sortBy === 'name') {
         return sortDesc ? b.kol.name.localeCompare(a.kol.name) : a.kol.name.localeCompare(b.kol.name);
       }
+      if (sortBy === 'signups') {
+        const aSignups = conversionMap.get(a.kol.id)?.signups ?? 0;
+        const bSignups = conversionMap.get(b.kol.id)?.signups ?? 0;
+        return sortDesc ? bSignups - aSignups : aSignups - bSignups;
+      }
       const aVal = a.totals[sortBy];
       const bVal = b.totals[sortBy];
       return sortDesc ? bVal - aVal : aVal - bVal;
     });
-  }, [kolSummaries, sortBy, sortDesc]);
+  }, [kolSummaries, sortBy, sortDesc, conversionMap]);
 
   const handleSort = (key: SortKey) => {
     if (sortBy === key) {

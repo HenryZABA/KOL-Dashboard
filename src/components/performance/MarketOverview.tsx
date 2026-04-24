@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Eye, Heart, MessageCircle, Share2, Trophy } from 'lucide-react';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 type TimeRange = '1W' | '1M' | '3M' | 'ALL';
@@ -12,12 +12,6 @@ const RANGES: { key: TimeRange; label: string; days: number }[] = [
   { key: '3M', label: '3M', days: 90 },
   { key: 'ALL', label: 'ALL', days: Infinity },
 ];
-
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
-}
 
 interface StatCardProps {
   icon: React.ElementType;

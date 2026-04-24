@@ -55,7 +55,7 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2 py-3">
         <SidebarMenu>
-          {NAV_ITEMS.map(({ to, icon: Icon, label, end, showBadge }) => (
+          {NAV_ITEMS.map(({ to, icon: Icon, label, end }) => (
             <SidebarMenuItem key={to}>
               <SidebarMenuButton
                 asChild

@@ -9,28 +9,7 @@ import { PlatformIcon } from '@/components/kol/PlatformIcon';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import type { KolConversionAgg, KolConversion } from '@/hooks/useKolConversions';
 import type { Platform } from '@/lib/mock-data';
-import { cn, openExternal } from '@/lib/utils';
-
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
-}
-
-function parsePubLinks(stageLinks?: Record<string, string>): Record<string, string> {
-  const map: Record<string, string> = {};
-  if (!stageLinks) return map;
-  for (const [key, val] of Object.entries(stageLinks)) {
-    if (key.startsWith('pub_')) {
-      const i = val.indexOf('|');
-      if (i >= 0) {
-        const url = val.slice(i + 1);
-        if (url) map[val.slice(0, i)] = url;
-      }
-    }
-  }
-  return map;
-}
+import { cn, openExternal, formatNumber, parsePubLinks } from '@/lib/utils';
 
 interface DayDetailDialogProps {
   date: string;
@@ -58,10 +37,10 @@ export function DayDetailDialog({ date, entries, conversionMap, conversionsByKol
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold">{date}</DialogTitle>
           <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1">
-            <span>Views {fmt(dateTotals.views)}</span>
-            <span>Reached {fmt(dateTotals.reached)}</span>
-            <span>Signups {fmt(dateTotals.signups)}</span>
-            <span>Paid {fmt(dateTotals.paid)}</span>
+            <span>Views {formatNumber(dateTotals.views)}</span>
+            <span>Reached {formatNumber(dateTotals.reached)}</span>
+            <span>Signups {formatNumber(dateTotals.signups)}</span>
+            <span>Paid {formatNumber(dateTotals.paid)}</span>
           </div>
         </DialogHeader>
 
@@ -117,13 +96,13 @@ function DetailRow({ summary, conversion, conversions }: {
       </div>
 
       <div className="flex items-center gap-3 ml-auto text-[10px]">
-        <MetricCell label="Views" value={fmt(totals.views)} />
+        <MetricCell label="Views" value={formatNumber(totals.views)} />
         {conversion && conversion.triggered_users > 0 && (
           <>
-            <MetricCell label="Reached" value={fmt(conversion.triggered_users)} />
-            <MetricCell label="Signups" value={fmt(conversion.signups)} />
+            <MetricCell label="Reached" value={formatNumber(conversion.triggered_users)} />
+            <MetricCell label="Signups" value={formatNumber(conversion.signups)} />
             <MetricCell label="Sign R" value={signR} highlight />
-            <MetricCell label="Paid" value={fmt(conversion.paid_users)} />
+            <MetricCell label="Paid" value={formatNumber(conversion.paid_users)} />
             <MetricCell label="Paid R" value={paidR} highlight />
           </>
         )}

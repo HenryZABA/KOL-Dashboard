@@ -5,18 +5,12 @@ import { DayDetailDialog } from './DayDetailDialog';
 import type { KolMetricSummary } from '@/hooks/useVideoMetrics';
 import type { KolConversion, KolConversionAgg } from '@/hooks/useKolConversions';
 import type { Platform } from '@/lib/mock-data';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function toDateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
 }
 
 interface CalendarViewProps {
@@ -231,9 +225,9 @@ function MonthSummary({
   return (
     <div className="flex items-center gap-4 text-[10px] text-muted-foreground px-1">
       <span>{stats.kolCount} KOLs published this month</span>
-      <span>Views {fmt(stats.views)}</span>
-      <span>Signups {fmt(stats.signups)}</span>
-      <span>Paid {fmt(stats.paid)}</span>
+      <span>Views {formatNumber(stats.views)}</span>
+      <span>Signups {formatNumber(stats.signups)}</span>
+      <span>Paid {formatNumber(stats.paid)}</span>
     </div>
   );
 }

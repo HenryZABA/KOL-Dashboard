@@ -62,7 +62,5 @@ export function SummaryBar() {
       </div>
 
       <div className="h-4 w-px bg-border shrink-0" />
-
-      
     </div>;
 }

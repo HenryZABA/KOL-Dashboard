@@ -41,6 +41,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     const pageSize = 1000;
     let page = 0;
     let allData: VideoMetric[] = [];
+    let hasError = false;
     while (true) {
       const { data, error } = await supabase
         .from('video_metrics')
@@ -48,12 +49,20 @@ export function useVideoMetrics(publishedKols: KOL[]) {
         .in('kol_id', ids)
         .order('recorded_at', { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
-      if (error) break;
+      if (error) {
+        console.warn('[useVideoMetrics] fetch error on page', page, error.message);
+        hasError = true;
+        break;
+      }
       allData = allData.concat((data ?? []) as unknown as VideoMetric[]);
       if (!data || data.length < pageSize) break;
       page++;
     }
-    setMetrics(allData);
+    if (hasError && allData.length === 0) {
+      setMetrics([]);
+    } else {
+      setMetrics(allData);
+    }
     setLoading(false);
   }, []);
 
@@ -63,7 +72,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
 
   const kolSummaries = useMemo((): KolMetricSummary[] => {
     return publishedKols.map((kol) => {
-      const kolMetrics = metrics.filter((m) => m.kol_id === kol.id);
+      const kolMetrics = metricsByKol.get(kol.id) ?? [];
 
       // Group by platform, get latest + previous
       const latestMap = {} as Record<Platform, VideoMetric | null>;
@@ -159,7 +168,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
 
       return { kol, latest: latestMap, previous: prevMap, totals, deltas, perPlatform };
     });
-  }, [publishedKols, metrics]);
+  }, [publishedKols, metricsByKol]);
 
   // Aggregate totals
   const aggregateTotals = useMemo(() => {
@@ -216,11 +225,21 @@ export function useVideoMetrics(publishedKols: KOL[]) {
     return result;
   }, [metrics]);
 
+  // Pre-group metrics by kol_id for O(1) lookup (avoids filtering 2000+ rows per card)
+  const metricsByKol = useMemo(() => {
+    const map = new Map<string, VideoMetric[]>();
+    for (const m of metrics) {
+      const arr = map.get(m.kol_id);
+      if (arr) arr.push(m);
+      else map.set(m.kol_id, [m]);
+    }
+    return map;
+  }, [metrics]);
+
   // Sparkline data per KOL (daily views growth rate %)
   const sparklineData = useCallback(
     (kolId: string): { date: string; views: number }[] => {
-      const kolMetrics = metrics.filter((m) => m.kol_id === kolId);
-      // Deduplicate: keep latest record per day+platform, then sum across platforms
+      const kolMetrics = metricsByKol.get(kolId) ?? [];
       const dayPlatMap = new Map<string, Map<string, VideoMetric>>();
       for (const m of kolMetrics) {
         const day = m.recorded_at.slice(0, 10);
@@ -247,13 +266,14 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       }
       return result;
     },
-    [metrics],
+    [metricsByKol],
   );
 
   // Sparkline data per KOL per platform (daily views growth rate %)
   const sparklineDataByPlatform = useCallback(
     (kolId: string, platform: Platform): { date: string; views: number }[] => {
-      const platMetrics = metrics.filter((m) => m.kol_id === kolId && m.platform === platform);
+      const kolMetrics = metricsByKol.get(kolId) ?? [];
+      const platMetrics = kolMetrics.filter((m) => m.platform === platform);
       const dayMap = new Map<string, VideoMetric>();
       for (const m of platMetrics) {
         const day = m.recorded_at.slice(0, 10);
@@ -274,7 +294,7 @@ export function useVideoMetrics(publishedKols: KOL[]) {
       }
       return result;
     },
-    [metrics],
+    [metricsByKol],
   );
 
   const refresh = useCallback(() => fetchMetrics(kolIdsKey ? kolIdsKey.split(',') : []), [fetchMetrics, kolIdsKey]);
