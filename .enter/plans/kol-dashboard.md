@@ -1,44 +1,80 @@
-# 优化计划：代码清理与性能提升
+# 架构重构计划
 
-## 发现的问题与修复方案
+## 背景
+三个优化方向：(1) 引入 React Query 统一数据缓存 (2) 用 Supabase 类型替代手写类型 (3) 抽 services 层
 
-### 1. 死代码：mock-data.ts 里 200+ 行假数据
-- 所有数据已经走 Supabase，`MOCK_KOLS`、`MOCK_AGENCIES`、`daysAgo()` 完全没用
-- **修复**：删除假数据数组，保留类型定义和工具函数
+## 重构方案
 
-### 2. 重复函数：`formatNumber` / `parsePubLinks` 到处复制粘贴
-- `formatNumber` 出现在 4 个文件：KolTickerCard、MarketOverview、CalendarView、DayDetailDialog
-- `parsePubLinks` 出现在 2 个文件：KolTickerCard、DayDetailDialog
-- **修复**：提取到 `src/lib/utils.ts`，统一引用
+### 第一步：重命名 mock-data.ts -> types.ts 并统一类型
 
-### 3. AppSidebar.tsx 解构了不存在的 `showBadge`
-- 第 58 行解构了 `showBadge` 但 NAV_ITEMS 里根本没这个字段
-- **修复**：删除多余解构
+**核心思路**：`mock-data.ts` 已经没有 mock 数据了，只剩类型和常量。将其重命名为 `src/lib/types.ts`，但**保留现有的 camelCase 前端类型**（KOL、Agency 等）。
 
-### 4. SummaryBar.tsx 残留空 JSX
-- 第 66 行有个没内容的空块
-- **修复**：清理掉
+Supabase 自动生成的类型是 snake_case（`current_stage`、`agency_id`），前端用的是 camelCase（`currentStage`、`agencyId`）。完全去掉映射意味着所有组件都要改成 snake_case，改动量巨大且可读性下降。
 
-### 5. 性能问题：sparkline 每次调用都遍历全量 metrics（2000+ 条）
-- 每张卡片渲染时 `sparklineData(kolId)` 都 filter 整个 metrics 数组
-- **修复**：在 hook 里预先按 kol_id 建索引 Map，sparkline 只遍历当前 KOL 的子集
+**实际操作**：
+- 重命名 `src/lib/mock-data.ts` -> `src/lib/types.ts`
+- 全局替换所有 `from '@/lib/mock-data'` -> `from '@/lib/types'`
+- 在 `types.ts` 里导出 Supabase 原生 Row 类型的别名，供 services 层使用
+- 涉及 25+ 个文件的 import 路径更新
 
-### 6. useVideoMetrics 缺少错误处理
-- 分页查询出错时 metrics 会是空的但没有任何提示
-- **修复**：加 console.warn 和显式 setMetrics([])
+### 第二步：抽 services 层
 
-### 7. Performance 排序缺少"注册数"选项
-- 之前计划加的 Signups 排序没在当前代码里
-- **修复**：加上 signups 排序（用 conversionMap 数据）
+**新建文件**：
+- `src/services/kol-service.ts` — KOL/Agency 的 CRUD 操作
+- `src/services/metrics-service.ts` — video_metrics 分页查询
+- `src/services/conversion-service.ts` — kol_conversions 查询
+
+**kol-service.ts** 内容（从 kol-store.tsx 提取）：
+- `fetchAllKols()` — 返回 KOL[]
+- `fetchAllAgencies()` — 返回 Agency[]
+- `insertKol(data)` — 插入 KOL
+- `updateKolStage(kolId, stage, note?)` — 更新阶段
+- `updateKolFields(kolId, updates)` — 更新字段
+- `toggleFocus(kolId, current)` — 切换今日焦点
+- `insertAgency(name)` — 创建 agency
+- `deleteAgency(agencyId)` — 删除 agency
+- 每个函数内部用 `supabase.from()`，包含 `dbToKol` / `dbToAgency` 映射
+
+**metrics-service.ts** 内容（从 useVideoMetrics.ts 提取）：
+- `fetchVideoMetrics(kolIds: string[])` — 分页查询，返回 VideoMetric[]
+
+**conversion-service.ts** 内容（从 useKolConversions.ts 提取）：
+- `fetchConversions(kolIds: string[])` — 返回 KolConversion[]
+
+### 第三步：引入 React Query
+
+**安装**：`@tanstack/react-query`
+
+**改造文件**：
+- `src/main.tsx` — 包裹 `QueryClientProvider`
+- `src/lib/kol-store.tsx` — `fetchData` 改用 React Query 的 `useQuery`，保留 realtime 订阅做乐观更新
+- `src/hooks/useVideoMetrics.ts` — 用 `useQuery` 包裹 `fetchVideoMetrics()`，自动缓存
+- `src/hooks/useKolConversions.ts` — 用 `useQuery` 包裹 `fetchConversions()`，自动缓存
+
+**缓存策略**：
+- KOL/Agency 数据：`staleTime: 30s`（realtime 补充更新）
+- video_metrics：`staleTime: 5min`（数据更新频率低）
+- conversions：`staleTime: 5min`
 
 ## 涉及文件
-- `src/lib/mock-data.ts` — 删假数据
-- `src/lib/utils.ts` — 加 formatNumber、parsePubLinks
-- `src/components/performance/KolTickerCard.tsx` — 引用共享函数
-- `src/components/performance/MarketOverview.tsx` — 引用共享函数
-- `src/components/performance/CalendarView.tsx` — 引用共享函数
-- `src/components/performance/DayDetailDialog.tsx` — 引用共享函数
-- `src/components/layout/AppSidebar.tsx` — 删 showBadge
-- `src/components/layout/SummaryBar.tsx` — 清理空 JSX
-- `src/hooks/useVideoMetrics.ts` — 预索引 + 错误处理
-- `src/pages/PerformancePage.tsx` — 加 signups 排序
+
+**新建**：
+- `src/services/kol-service.ts`
+- `src/services/metrics-service.ts`
+- `src/services/conversion-service.ts`
+
+**重命名**：
+- `src/lib/mock-data.ts` -> `src/lib/types.ts`
+
+**修改**：
+- `src/main.tsx` — 加 QueryClientProvider
+- `src/lib/kol-store.tsx` — 提取 DB 操作到 service，引入 useQuery
+- `src/hooks/useVideoMetrics.ts` — 引入 useQuery + service
+- `src/hooks/useKolConversions.ts` — 引入 useQuery + service
+- 25+ 个组件文件的 import 路径更新（mock-data -> types）
+
+## 验证
+- `pnpm run lint` 通过
+- 所有页面正常渲染（Kanban、Performance、Agency Portal）
+- 切换页面时数据不重复加载（React Query 缓存生效）
+- Realtime 更新仍然正常
