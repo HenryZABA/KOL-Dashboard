@@ -1,79 +1,38 @@
-# Schema Alignment: Add Missing KOL Fields
+# Fix: Sparkline oscillation bug
 
-## Context
-Agency spreadsheet has fields not yet in the `kols` database table. Need to add them so the sync agent can write complete data.
+## Root Cause
+`sparklineData()` in `useVideoMetrics.ts` (line 145-156) iterates over **raw rows** sorted by `recorded_at`. When a KOL has multiple platforms, rows alternate (e.g. youtube-1000, tiktok-500, youtube-1100, tiktok-600), causing nonsensical growth rates like -50% → +120% → -50%.
 
-## Current vs Required
+## Fix
+Change `sparklineData()` to **group by date first** (summing all platforms' views per day), then compute daily growth rate between consecutive dates. This matches how `trendData` already works (lines 113-142).
 
-| Spreadsheet Column | DB Column | Status |
-|---|---|---|
-| Agency Name | `agency_id` (FK) | OK |
-| Account Link | `profile_url` | OK |
-| Influencer Name | `name` | OK |
-| **Category** | -- | **MISSING** |
-| Platform | `platforms` | OK (need to add `youtube_shorts`, `linkedin`) |
-| **Follower (K)** | -- | **MISSING** |
-| **Region** | -- | **MISSING** |
-| **最近10条视频中位数 (K)** | -- | **MISSING** |
-| **可接受植入方式** | -- | **MISSING** |
-| **Final Price** | -- | **MISSING** |
-| **达人互联网搜索** | -- | **MISSING** |
-| Content Direction | `content_direction` | OK |
-| UTM | `utm_content` + `utm_link` | OK |
-| Bitly link | `bitly_link` | OK |
-| **Boot link** | -- | **MISSING** |
-| Published Date | `published_at` | OK |
-| **Caption** | -- | **MISSING** |
-| **Cover** | -- | **MISSING** |
-| **原片 (raw footage)** | -- | **MISSING** |
-| **数据详情链接** | -- | **MISSING** |
-| **截图时间** | -- | **MISSING** |
-| Notes/备注 | `notes` | OK |
+### File: `src/hooks/useVideoMetrics.ts`
 
-## Step 1: DB Migration — Add 11 new columns to `kols`
-
-```sql
-ALTER TABLE kols ADD COLUMN category text;
-ALTER TABLE kols ADD COLUMN follower_count real;          -- in K (thousands)
-ALTER TABLE kols ADD COLUMN region text;
-ALTER TABLE kols ADD COLUMN median_views real;            -- 最近10条视频中位数 (K)
-ALTER TABLE kols ADD COLUMN integration_type text;        -- 可接受植入方式
-ALTER TABLE kols ADD COLUMN final_price real;
-ALTER TABLE kols ADD COLUMN influencer_search_note text;  -- 达人互联网搜索
-ALTER TABLE kols ADD COLUMN boot_link text;
-ALTER TABLE kols ADD COLUMN caption text;
-ALTER TABLE kols ADD COLUMN cover_url text;
-ALTER TABLE kols ADD COLUMN raw_footage_url text;         -- 原片
-ALTER TABLE kols ADD COLUMN data_detail_link text;        -- 数据详情链接
-ALTER TABLE kols ADD COLUMN screenshot_time timestamp with time zone; -- 截图时间
-```
-
-## Step 2: Update Platform type — add `youtube_shorts` and `linkedin`
-
-In `src/lib/types.ts`:
+Replace `sparklineData` (lines 144-156):
 ```ts
-export type Platform = 'youtube' | 'youtube_shorts' | 'tiktok' | 'instagram' | 'x' | 'facebook' | 'linkedin';
+const sparklineData = (kolId: string): { date: string; views: number }[] => {
+  const rows = metricsByKol.get(kolId) || [];
+  if (rows.length < 2) return [];
+  // Group by date, sum views across platforms
+  const byDate = new Map<string, number>();
+  for (const r of rows) {
+    const d = r.recorded_at.slice(0, 10);
+    byDate.set(d, (byDate.get(d) || 0) + r.views);
+  }
+  const dates = [...byDate.keys()].sort();
+  if (dates.length < 2) return [];
+  const result: { date: string; views: number }[] = [];
+  for (let i = 1; i < dates.length; i++) {
+    const prev = byDate.get(dates[i - 1])!;
+    const curr = byDate.get(dates[i])!;
+    result.push({ date: dates[i], views: prev > 0 ? ((curr - prev) / prev) * 100 : 0 });
+  }
+  return result;
+};
 ```
-Update `PLATFORM_LABELS` accordingly.
 
-## Step 3: Update KOL type in `src/lib/types.ts`
-
-Add all 11 new optional fields to the `KOL` interface.
-
-## Step 4: Update `dbToKol()` in `src/services/kol-service.ts`
-
-Map all new snake_case DB columns to camelCase fields.
-
-## Step 5: Update `updateKolFields()` in `src/services/kol-service.ts`
-
-Add reverse mappings for the new fields.
-
-## Files Changed
-- `src/lib/types.ts` — Platform type, KOL interface, PLATFORM_LABELS
-- `src/services/kol-service.ts` — dbToKol, updateKolFields
-- DB migration (11 new columns)
+Same fix for `sparklineDataByPlatform` (lines 158-170) — it already filters by platform, but should still group by date in case there are multiple records per day per platform.
 
 ## Verification
-- Run `supabase_get_table_schema` to confirm columns added
-- `run_lint` passes
-- Existing features unaffected (all new fields are optional/nullable)
+- Sparklines should show smooth daily curves, not oscillating noise
+- Selecting a specific platform icon should show that platform's daily trend
