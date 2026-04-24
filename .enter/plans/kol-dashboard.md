@@ -1,80 +1,79 @@
-# 架构重构计划
+# Schema Alignment: Add Missing KOL Fields
 
-## 背景
-三个优化方向：(1) 引入 React Query 统一数据缓存 (2) 用 Supabase 类型替代手写类型 (3) 抽 services 层
+## Context
+Agency spreadsheet has fields not yet in the `kols` database table. Need to add them so the sync agent can write complete data.
 
-## 重构方案
+## Current vs Required
 
-### 第一步：重命名 mock-data.ts -> types.ts 并统一类型
+| Spreadsheet Column | DB Column | Status |
+|---|---|---|
+| Agency Name | `agency_id` (FK) | OK |
+| Account Link | `profile_url` | OK |
+| Influencer Name | `name` | OK |
+| **Category** | -- | **MISSING** |
+| Platform | `platforms` | OK (need to add `youtube_shorts`, `linkedin`) |
+| **Follower (K)** | -- | **MISSING** |
+| **Region** | -- | **MISSING** |
+| **最近10条视频中位数 (K)** | -- | **MISSING** |
+| **可接受植入方式** | -- | **MISSING** |
+| **Final Price** | -- | **MISSING** |
+| **达人互联网搜索** | -- | **MISSING** |
+| Content Direction | `content_direction` | OK |
+| UTM | `utm_content` + `utm_link` | OK |
+| Bitly link | `bitly_link` | OK |
+| **Boot link** | -- | **MISSING** |
+| Published Date | `published_at` | OK |
+| **Caption** | -- | **MISSING** |
+| **Cover** | -- | **MISSING** |
+| **原片 (raw footage)** | -- | **MISSING** |
+| **数据详情链接** | -- | **MISSING** |
+| **截图时间** | -- | **MISSING** |
+| Notes/备注 | `notes` | OK |
 
-**核心思路**：`mock-data.ts` 已经没有 mock 数据了，只剩类型和常量。将其重命名为 `src/lib/types.ts`，但**保留现有的 camelCase 前端类型**（KOL、Agency 等）。
+## Step 1: DB Migration — Add 11 new columns to `kols`
 
-Supabase 自动生成的类型是 snake_case（`current_stage`、`agency_id`），前端用的是 camelCase（`currentStage`、`agencyId`）。完全去掉映射意味着所有组件都要改成 snake_case，改动量巨大且可读性下降。
+```sql
+ALTER TABLE kols ADD COLUMN category text;
+ALTER TABLE kols ADD COLUMN follower_count real;          -- in K (thousands)
+ALTER TABLE kols ADD COLUMN region text;
+ALTER TABLE kols ADD COLUMN median_views real;            -- 最近10条视频中位数 (K)
+ALTER TABLE kols ADD COLUMN integration_type text;        -- 可接受植入方式
+ALTER TABLE kols ADD COLUMN final_price real;
+ALTER TABLE kols ADD COLUMN influencer_search_note text;  -- 达人互联网搜索
+ALTER TABLE kols ADD COLUMN boot_link text;
+ALTER TABLE kols ADD COLUMN caption text;
+ALTER TABLE kols ADD COLUMN cover_url text;
+ALTER TABLE kols ADD COLUMN raw_footage_url text;         -- 原片
+ALTER TABLE kols ADD COLUMN data_detail_link text;        -- 数据详情链接
+ALTER TABLE kols ADD COLUMN screenshot_time timestamp with time zone; -- 截图时间
+```
 
-**实际操作**：
-- 重命名 `src/lib/mock-data.ts` -> `src/lib/types.ts`
-- 全局替换所有 `from '@/lib/mock-data'` -> `from '@/lib/types'`
-- 在 `types.ts` 里导出 Supabase 原生 Row 类型的别名，供 services 层使用
-- 涉及 25+ 个文件的 import 路径更新
+## Step 2: Update Platform type — add `youtube_shorts` and `linkedin`
 
-### 第二步：抽 services 层
+In `src/lib/types.ts`:
+```ts
+export type Platform = 'youtube' | 'youtube_shorts' | 'tiktok' | 'instagram' | 'x' | 'facebook' | 'linkedin';
+```
+Update `PLATFORM_LABELS` accordingly.
 
-**新建文件**：
-- `src/services/kol-service.ts` — KOL/Agency 的 CRUD 操作
-- `src/services/metrics-service.ts` — video_metrics 分页查询
-- `src/services/conversion-service.ts` — kol_conversions 查询
+## Step 3: Update KOL type in `src/lib/types.ts`
 
-**kol-service.ts** 内容（从 kol-store.tsx 提取）：
-- `fetchAllKols()` — 返回 KOL[]
-- `fetchAllAgencies()` — 返回 Agency[]
-- `insertKol(data)` — 插入 KOL
-- `updateKolStage(kolId, stage, note?)` — 更新阶段
-- `updateKolFields(kolId, updates)` — 更新字段
-- `toggleFocus(kolId, current)` — 切换今日焦点
-- `insertAgency(name)` — 创建 agency
-- `deleteAgency(agencyId)` — 删除 agency
-- 每个函数内部用 `supabase.from()`，包含 `dbToKol` / `dbToAgency` 映射
+Add all 11 new optional fields to the `KOL` interface.
 
-**metrics-service.ts** 内容（从 useVideoMetrics.ts 提取）：
-- `fetchVideoMetrics(kolIds: string[])` — 分页查询，返回 VideoMetric[]
+## Step 4: Update `dbToKol()` in `src/services/kol-service.ts`
 
-**conversion-service.ts** 内容（从 useKolConversions.ts 提取）：
-- `fetchConversions(kolIds: string[])` — 返回 KolConversion[]
+Map all new snake_case DB columns to camelCase fields.
 
-### 第三步：引入 React Query
+## Step 5: Update `updateKolFields()` in `src/services/kol-service.ts`
 
-**安装**：`@tanstack/react-query`
+Add reverse mappings for the new fields.
 
-**改造文件**：
-- `src/main.tsx` — 包裹 `QueryClientProvider`
-- `src/lib/kol-store.tsx` — `fetchData` 改用 React Query 的 `useQuery`，保留 realtime 订阅做乐观更新
-- `src/hooks/useVideoMetrics.ts` — 用 `useQuery` 包裹 `fetchVideoMetrics()`，自动缓存
-- `src/hooks/useKolConversions.ts` — 用 `useQuery` 包裹 `fetchConversions()`，自动缓存
+## Files Changed
+- `src/lib/types.ts` — Platform type, KOL interface, PLATFORM_LABELS
+- `src/services/kol-service.ts` — dbToKol, updateKolFields
+- DB migration (11 new columns)
 
-**缓存策略**：
-- KOL/Agency 数据：`staleTime: 30s`（realtime 补充更新）
-- video_metrics：`staleTime: 5min`（数据更新频率低）
-- conversions：`staleTime: 5min`
-
-## 涉及文件
-
-**新建**：
-- `src/services/kol-service.ts`
-- `src/services/metrics-service.ts`
-- `src/services/conversion-service.ts`
-
-**重命名**：
-- `src/lib/mock-data.ts` -> `src/lib/types.ts`
-
-**修改**：
-- `src/main.tsx` — 加 QueryClientProvider
-- `src/lib/kol-store.tsx` — 提取 DB 操作到 service，引入 useQuery
-- `src/hooks/useVideoMetrics.ts` — 引入 useQuery + service
-- `src/hooks/useKolConversions.ts` — 引入 useQuery + service
-- 25+ 个组件文件的 import 路径更新（mock-data -> types）
-
-## 验证
-- `pnpm run lint` 通过
-- 所有页面正常渲染（Kanban、Performance、Agency Portal）
-- 切换页面时数据不重复加载（React Query 缓存生效）
-- Realtime 更新仍然正常
+## Verification
+- Run `supabase_get_table_schema` to confirm columns added
+- `run_lint` passes
+- Existing features unaffected (all new fields are optional/nullable)
