@@ -5,6 +5,7 @@ import { SummaryBar } from './SummaryBar';
 import { useAuth } from '@/lib/auth';
 import { useEffect } from 'react';
 import BrandAiPage from '@/pages/BrandAiPage';
+import { AgentFab } from '@/components/agent/AgentFab';
 
 export function DashboardLayout() {
   const navigate = useNavigate();
@@ -49,6 +50,7 @@ export function DashboardLayout() {
           {!isAiPage && <Outlet />}
         </div>
       </SidebarInset>
+      <AgentFab />
     </SidebarProvider>
   );
 }

@@ -34,7 +34,7 @@ export function useEnterAgent() {
 
   /** Send a message to the agent and stream events */
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, onEvent?: (evt: AgentEvent) => void) => {
       setError(null);
       setRunning(true);
       setEvents([]);
@@ -51,6 +51,7 @@ export function useEnterAgent() {
           {
             onEvent: ({ event }: { event: AgentEvent }) => {
               setEvents((prev) => [...prev, event]);
+              onEvent?.(event);
             },
           },
         );
