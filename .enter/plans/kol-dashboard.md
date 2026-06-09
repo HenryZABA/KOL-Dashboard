@@ -1,38 +1,38 @@
-# Fix: Sparkline oscillation bug
+# Deploy External Enter Agent — Test Page
 
-## Root Cause
-`sparklineData()` in `useVideoMetrics.ts` (line 145-156) iterates over **raw rows** sorted by `recorded_at`. When a KOL has multiple platforms, rows alternate (e.g. youtube-1000, tiktok-500, youtube-1100, tiktok-600), causing nonsensical growth rates like -50% → +120% → -50%.
+## Context
+User wants to integrate an external Enter agent (ID `22f8279e-3481-414c-b595-84115ab6dd18`) via the `@ag-ui/client` SDK. The agent uses thread-based streaming.
 
-## Fix
-Change `sparklineData()` to **group by date first** (summing all platforms' views per day), then compute daily growth rate between consecutive dates. This matches how `trendData` already works (lines 113-142).
+## Status So Far (done)
+- `@ag-ui/client@0.0.55` installed
+- `src/hooks/useEnterAgent.ts` created — wraps thread creation + `HttpAgent` streaming
+- `src/pages/AgentTestPage.tsx` created — minimal chat UI that dumps all streamed events
 
-### File: `src/hooks/useVideoMetrics.ts`
+## Remaining Step: Register Route
+File: `src/router.tsx`
 
-Replace `sparklineData` (lines 144-156):
-```ts
-const sparklineData = (kolId: string): { date: string; views: number }[] => {
-  const rows = metricsByKol.get(kolId) || [];
-  if (rows.length < 2) return [];
-  // Group by date, sum views across platforms
-  const byDate = new Map<string, number>();
-  for (const r of rows) {
-    const d = r.recorded_at.slice(0, 10);
-    byDate.set(d, (byDate.get(d) || 0) + r.views);
-  }
-  const dates = [...byDate.keys()].sort();
-  if (dates.length < 2) return [];
-  const result: { date: string; views: number }[] = [];
-  for (let i = 1; i < dates.length; i++) {
-    const prev = byDate.get(dates[i - 1])!;
-    const curr = byDate.get(dates[i])!;
-    result.push({ date: dates[i], views: prev > 0 ? ((curr - prev) / prev) * 100 : 0 });
-  }
-  return result;
-};
+Add:
+```tsx
+import AgentTestPage from './pages/AgentTestPage';
+// ...
+{ path: 'agent-test', element: <AgentTestPage /> },
 ```
 
-Same fix for `sparklineDataByPlatform` (lines 158-170) — it already filters by platform, but should still group by date in case there are multiple records per day per platform.
+Place under `/dashboard` children block (alongside `performance`, `inbox`, etc.).
+
+## How User Tests
+Navigate to `/dashboard/agent-test` → type message → watch event stream.
+
+## Security Note
+Current implementation hardcodes the API key in `useEnterAgent.ts` for fast testing. After verification works, **next step** is:
+1. Store `ENTER_AGENT_API_KEY` as a Supabase secret
+2. Move thread creation + agent streaming behind an edge function proxy
+3. Frontend hits edge function instead of `api.enter.pro` directly
+
+Edge function deployment is currently failing (backend issue) — will retry after verifying the SDK flow works.
 
 ## Verification
-- Sparklines should show smooth daily curves, not oscillating noise
-- Selecting a specific platform icon should show that platform's daily trend
+- Route renders
+- "Send" creates thread → shows `thread_id`
+- Events stream into the UI list (e.g. `RUN_STARTED`, `TEXT_MESSAGE_*`, `RUN_FINISHED`)
+- Errors display in red banner
