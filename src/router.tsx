@@ -8,6 +8,7 @@ import InboxPage from './pages/InboxPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
 import AgencyPortalPage from './pages/AgencyPortalPage';
 import PerformancePage from './pages/PerformancePage';
+import AgentTestPage from './pages/AgentTestPage';
 import NotFound from './pages/NotFound';
 
 export const routers = [
@@ -30,6 +31,7 @@ export const routers = [
       { path: 'kols', element: <AllKolsKanbanPage /> },
       { path: 'agencies', element: <AgenciesPage /> },
       { path: 'performance', element: <PerformancePage /> },
+      { path: 'agent-test', element: <AgentTestPage /> },
       { path: 'inbox', element: <InboxPage /> },
       { path: 'ai', element: null },
       { path: 'settings', element: <SettingsPage /> },
