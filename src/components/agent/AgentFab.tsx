@@ -16,13 +16,12 @@ interface ChatMessage {
 
 /** Extract text deltas from streamed agent events */
 function extractTextFromEvent(event: AgentEvent): string {
-  // AG-UI protocol uses various event types
+  // AG-UI v2 uses PascalCase event types
+  if (event.type === 'TextMessageContent' && typeof event.delta === 'string') return event.delta;
+  if (event.type === 'TextMessageChunk' && typeof event.delta === 'string') return event.delta;
+  // Legacy / fallback
   if (event.type === 'TEXT_MESSAGE_CONTENT' && typeof event.delta === 'string') return event.delta;
   if (event.type === 'TEXT_MESSAGE_CHUNK' && typeof event.delta === 'string') return event.delta;
-  // Fallback: try common field names
-  if (typeof event.delta === 'string') return event.delta;
-  if (typeof event.content === 'string' && event.type?.includes('TEXT')) return event.content;
-  if (typeof event.text === 'string') return event.text;
   return '';
 }
 
@@ -52,10 +51,22 @@ export function AgentFab() {
     let acc = '';
     await sendMessage(text, (evt) => {
       console.log('[AgentFab] event:', evt.type, evt);
+      // Show tool execution as a system message
+      if (evt.type === 'TOOL_EXECUTED') {
+        const summary = `Tool: ${evt.toolName}`;
+        setMessages((prev) => [...prev, { id: `tool-${Date.now()}-${Math.random()}`, role: 'assistant', content: `> _${summary} executed_` }]);
+        return;
+      }
       const delta = extractTextFromEvent(evt);
       if (delta) {
         acc += delta;
         setStreaming(acc);
+      }
+      // Flush accumulated text when message ends
+      if (evt.type === 'TextMessageEnd' && acc) {
+        setMessages((prev) => [...prev, { id: `a-${Date.now()}-${Math.random()}`, role: 'assistant', content: acc }]);
+        acc = '';
+        setStreaming('');
       }
     });
 
