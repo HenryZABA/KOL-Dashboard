@@ -14,12 +14,13 @@ interface ChatMessage {
 
 /** Extract text deltas from streamed agent events */
 function extractTextFromEvent(event: AgentEvent): string {
-  if (event.type === 'TEXT_MESSAGE_CONTENT' && typeof event.delta === 'string') {
-    return event.delta;
-  }
-  if (event.type === 'TEXT_MESSAGE_CHUNK' && typeof event.delta === 'string') {
-    return event.delta;
-  }
+  // AG-UI protocol uses various event types
+  if (event.type === 'TEXT_MESSAGE_CONTENT' && typeof event.delta === 'string') return event.delta;
+  if (event.type === 'TEXT_MESSAGE_CHUNK' && typeof event.delta === 'string') return event.delta;
+  // Fallback: try common field names
+  if (typeof event.delta === 'string') return event.delta;
+  if (typeof event.content === 'string' && event.type?.includes('TEXT')) return event.content;
+  if (typeof event.text === 'string') return event.text;
   return '';
 }
 
@@ -48,6 +49,7 @@ export function AgentFab() {
 
     let acc = '';
     await sendMessage(text, (evt) => {
+      console.log('[AgentFab] event:', evt.type, evt);
       const delta = extractTextFromEvent(evt);
       if (delta) {
         acc += delta;
